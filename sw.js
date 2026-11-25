@@ -1,5 +1,5 @@
 // Market Tracker service worker: app shell cache-first, data network-first with cache fallback.
-const VERSION = "mt-v2";
+const VERSION = "mt-v3";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
