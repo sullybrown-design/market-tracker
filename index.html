@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Market Tracker">
+<title>Market Tracker — Daily Briefing, Charts, Calendar</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{
+  --bg:#0b0e14; --bg2:#10141d; --card:#131926; --card2:#171e2e; --line:#232c40;
+  --text:#e8ecf3; --muted:#93a0b4; --faint:#5d6a80;
+  --up:#22c07a; --down:#f0524f; --flat:#93a0b4;
+  --accent:#4f8cff; --accent2:#b78cff; --warn:#f5b83d;
+  --pos-bg:rgba(34,192,122,.14); --neg-bg:rgba(240,82,79,.13);
+  --radius:14px; --nav-h:64px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));}
+.num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
+a{color:var(--accent);text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+header.top{position:sticky;top:0;z-index:30;background:rgba(11,14,20,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  padding:calc(8px + env(safe-area-inset-top)) 16px 8px}
+header.top .row{display:flex;align-items:baseline;gap:10px;max-width:1080px;margin:0 auto}
+header.top h1{font-size:19px;margin:0;letter-spacing:.2px}
+header.top .sub{color:var(--muted);font-size:12px;margin-left:auto;text-align:right}
+main{max-width:1080px;margin:0 auto;padding:14px 14px 30px}
+h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:22px 2px 10px}
+h2.sec:first-child{margin-top:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.lead{border-left:3px solid var(--accent);background:linear-gradient(180deg,var(--card2),var(--card))}
+.lead .kicker{color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.lead h3{margin:6px 0 6px;font-size:21px;line-height:1.25}
+.why{background:rgba(79,140,255,.08);border:1px solid rgba(79,140,255,.25);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13.5px}
+.why b{color:var(--accent);font-size:11px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:3px}
+.meta{color:var(--muted);font-size:12px}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--line);font-size:11px;color:var(--muted);margin:2px 3px 2px 0}
+.pill.hot{border-color:rgba(245,184,61,.5);color:var(--warn)}
+.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--flat)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(min-width:760px){.grid2{grid-template-columns:repeat(3,1fr)} .wide-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;align-items:start}}
+.xasset{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+@media(min-width:760px){.xasset{grid-template-columns:repeat(5,1fr)}}
+.xasset .cell{background:var(--card);padding:10px 12px;min-height:64px}
+.xasset .cell .lbl{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xasset .cell .typ{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em}
+.xasset .cell .px{font-size:17px;font-weight:600;margin-top:2px}
+.xasset .cell .chg{font-size:12.5px}
+.rows{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.rowitem{display:flex;gap:10px;align-items:center;padding:11px 13px;border-bottom:1px solid var(--line);width:100%;text-align:left}
+.rowitem:last-child{border-bottom:0}
+.rowitem:active{background:var(--card2)}
+.rowitem .grow{flex:1;min-width:0}
+.rowitem .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rowitem .s{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.right{text-align:right;flex-shrink:0}
+.chgbox{min-width:74px;text-align:center;padding:5px 7px;border-radius:9px;font-weight:600;font-size:13px}
+.chgbox.upb{background:var(--pos-bg);color:var(--up)} .chgbox.downb{background:var(--neg-bg);color:var(--down)} .chgbox.flatb{background:var(--bg2);color:var(--muted)}
+.newsitem{padding:12px 13px;border-bottom:1px solid var(--line)}
+.newsitem:last-child{border-bottom:0}
+.newsitem h4{margin:0 0 4px;font-size:15.5px;line-height:1.35}
+.newsitem h4 a{color:var(--text)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(13,17,26,.96);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);height:calc(var(--nav-h) + env(safe-area-inset-bottom))}
+nav.bottom .inner{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--nav-h)}
+nav.bottom button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--faint);font-size:10.5px;min-height:44px}
+nav.bottom button.on{color:var(--accent)}
+nav.bottom .ic{font-size:20px;line-height:1}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.seg button{padding:7px 12px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:13px;min-height:36px}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.seg button.alt.on{background:var(--accent2);border-color:var(--accent2)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.toolbar input[type=search]{flex:1;min-width:150px}
+canvas.chart{width:100%;display:block;background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);touch-action:none}
+.ohlc{font-size:12.5px;color:var(--muted);min-height:20px;margin:8px 2px 0}
+.heat{display:grid;gap:3px}
+.heat .tile{border-radius:8px;padding:7px 8px;min-height:56px;color:#fff;overflow:hidden;text-align:left;width:100%}
+.heat .tile .ts{font-weight:700;font-size:13px}
+.heat .tile .tn{font-size:10.5px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.heat .tile .tp{font-size:12px;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;text-align:right}
+.banner{border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0;border:1px solid}
+.banner.stale{background:rgba(245,184,61,.1);border-color:rgba(245,184,61,.4);color:var(--warn)}
+.banner.err{background:rgba(240,82,79,.1);border-color:rgba(240,82,79,.4);color:#ff9d9b}
+.banner.info{background:rgba(79,140,255,.08);border-color:rgba(79,140,255,.3);color:#a9c6ff}
+.skel{color:var(--faint);padding:26px;text-align:center}
+.evt-date{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);margin:18px 2px 8px}
+.surprise{font-weight:700}
+footer.foot{color:var(--faint);font-size:12px;padding:20px 4px 10px;line-height:1.6}
+dialog{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:16px;max-width:92vw;width:420px}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.btn{display:inline-block;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card2);min-height:40px;font-size:14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.danger{border-color:rgba(240,82,79,.5);color:#ff9d9b}
+.small{font-size:12.5px} .muted{color:var(--muted)}
+.spark{display:block}
+:fullscreen canvas.chart{height:100%!important}
+.tag{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border-radius:5px;background:var(--bg2);border:1px solid var(--line);color:var(--muted)}
+.tag.obs{color:#7ee2ae;border-color:rgba(34,192,122,.4)} .tag.interp{color:#a9c6ff;border-color:rgba(79,140,255,.4)} .tag.scen{color:var(--warn);border-color:rgba(245,184,61,.4)}
+</style>
+</head>
+<body>
+<header class="top"><div class="row">
+  <h1>📈 Market Tracker</h1>
+  <div class="sub" id="hdrStatus">Loading…</div>
+</div></header>
+<main id="app"><div class="skel">Loading market data…</div></main>
+<nav class="bottom"><div class="inner" id="bottomNav"></div></nav>
+<dialog id="sheet"></dialog>
+
+<script>
+"use strict";
+/* ============ helpers ============ */
+const $=s=>document.querySelector(s), app=$("#app");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtN=(v,d=2)=>v==null||isNaN(v)?"—":Number(v).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtPct=v=>v==null||isNaN(v)?"—":(v>0?"+":"")+Number(v).toFixed(2)+"%";
+const fmtSigned=(v,d=2)=>v==null||isNaN(v)?"—":(v>0?"+":"")+fmtN(v,d);
+const cls=v=>v==null||isNaN(v)?"flat":v>0?"up":v<0?"down":"flat";
+const arrow=v=>v==null||isNaN(v)?"•":v>0?"▲":v<0?"▼":"—";
+function etFmt(ts,opts){try{return new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",...opts}).format(new Date(ts))}catch(e){return new Date(ts).toLocaleString()}}
+const etTime=ts=>etFmt(ts,{hour:"numeric",minute:"2-digit",hour12:true})+" ET";
+const etDate=ts=>etFmt(ts,{weekday:"short",month:"short",day:"numeric"});
+const etFull=ts=>etDate(ts)+", "+etTime(ts);
+function ago(ts){const s=(Date.now()-ts)/1e3;if(s<90)return"just now";if(s<5400)return Math.round(s/60)+"m ago";if(s<129600)return Math.round(s/3600)+"h ago";return Math.round(s/86400)+"d ago"}
+function marketStatus(now=new Date()){
+  const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",weekday:"short",hour:"numeric",minute:"numeric",hour12:false}).formatToParts(now);
+  const g=t=>parts.find(p=>p.type===t).value; const wd=g("weekday"); let h=+g("hour"); if(h===24)h=0; const mins=h*60+(+g("minute"));
+  if(wd==="Sat"||wd==="Sun")return{label:"Closed — weekend",open:false};
+  if(mins<4*60)return{label:"Closed — overnight",open:false};
+  if(mins<9*60+30)return{label:"Pre-market (4:00–9:30 AM ET)",open:false};
+  if(mins<16*60)return{label:"Market open — regular session (9:30 AM–4:00 PM ET)",open:true};
+  if(mins<20*60)return{label:"After-hours (4:00–8:00 PM ET)",open:false};
+  return{label:"Closed — overnight",open:false};
+}
+/* ============ data layer (snapshot + offline cache) ============ */
+const DB={};
+let dataStale=false, dataError="";
+async function loadJSON(name){
+  try{
+    const r=await fetch("data/"+name,{cache:"no-cache"});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    localStorage.setItem("mt.cache."+name,JSON.stringify(j));
+    return j;
+  }catch(e){
+    const c=localStorage.getItem("mt.cache."+name);
+    if(c){dataStale=true;return JSON.parse(c)}
+    dataError=name+": "+e.message; return null;
+  }
+}
+async function loadAll(){
+  const names=["snapshot.json","quotes.json","news.json","earnings.json","econ.json","cftc.json","f13.json","research.json","archive_index.json"];
+  const res=await Promise.all(names.map(loadJSON));
+  names.forEach((n,i)=>DB[n.replace(".json","")]=res[i]);
+  renderHeader(); route();
+}
+function lastUpdate(){
+  const g=DB.snapshot&&DB.snapshot.generated_at; return g?new Date(g).getTime():null;
+}
+function renderHeader(){
+  const ms=marketStatus(); const lu=lastUpdate();
+  $("#hdrStatus").innerHTML=esc(etFull(Date.now()))+"<br>"+esc(ms.label)+(lu?"<br>Updated "+etTime(lu):"");
+}
+function staleBanner(){
+  if(dataError)return `<div class="banner err">Some data failed to load (${esc(dataError)}). Sections using it show as empty — charts and other sections are unaffected.</div>`;
+  if(dataStale||(lastUpdate()&&Date.now()-lastUpdate()>45*60*1000))
+    return `<div class="banner stale">Showing the last successful snapshot${lastUpdate()?" from "+etFull(lastUpdate()):""}. Data may be stale — check the timestamp on each section.</div>`;
+  return "";
+}
+function symFile(sym){return "data/candles/"+sym.replace(/[^A-Za-z0-9]+/g,"_")+".json"}
+async function loadCandles(sym){
+  const key="mt.candles."+sym;
+  try{const r=await fetch(symFile(sym));if(!r.ok)throw 0;const j=await r.json();localStorage.setItem(key,JSON.stringify(j));return j}
+  catch(e){const c=localStorage.getItem(key);return c?JSON.parse(c):null}
+}
+/* ============ shared bits ============ */
+function quoteOf(sym){return (DB.quotes&&DB.quotes.quotes||{})[sym]}
+function nextEarnings(sym){
+  const evs=(DB.earnings&&DB.earnings.events||[]).filter(e=>e.symbol===sym&&e.date>=new Date().toISOString().slice(0,10));
+  return evs.length?evs[0]:null;
+}
+function sparkSVG(sym,w=72,h=24){
+  const q=quoteOf(sym); if(!q||!q.spark||q.spark.length<2)return"";
+  const min=Math.min(...q.spark),max=Math.max(...q.spark),rg=(max-min)||1;
+  const pts=q.spark.map((v,i)=>`${(i/(q.spark.length-1)*w).toFixed(1)},${(h-2-((v-min)/rg)*(h-4)).toFixed(1)}`).join(" ");
+  const c=q.changePct>=0?"var(--up)":"var(--down)";
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${c}" stroke-width="1.6"/></svg>`;
+}
+function instLink(sym){return "#/instrument/"+encodeURIComponent(sym)}
+function symRow(sym,extra=""){
+  const q=quoteOf(sym); if(!q)return"";
+  const ne=nextEarnings(sym);
+  return `<button class="rowitem" onclick="location.hash='${instLink(sym)}'">
+    <div class="grow"><div class="t num">${esc(sym)} <span class="meta">${esc(q.exchange)} · ${esc(q.currency)}</span></div>
+    <div class="s">${esc(q.name)}${ne?" · Earn "+esc(ne.date):""} ${extra}</div></div>
+    ${sparkSVG(sym)}
+    <div class="right"><div class="num" style="font-weight:600">${fmtN(q.price)}</div>
+    <div class="num ${cls(q.changePct)} small">${arrow(q.changePct)} ${fmtPct(q.changePct)}</div></div></button>`;
+}
+/* ============ routing ============ */
+const NAV=[["today","📰","Today"],["charts","📊","Charts"],["calendar","🗓️","Calendar"],["watchlists","⭐","Watchlists"],["research","🔬","Research"]];
+function renderNav(cur){
+  $("#bottomNav").innerHTML=NAV.map(([k,ic,l])=>`<button class="${cur===k?"on":""}" onclick="location.hash='#/${k}'"><span class="ic">${ic}</span>${l}</button>`).join("");
+}
+function route(){
+  const h=(location.hash||"#/today").replace(/^#\//,"");
+  const [page,arg]=h.split("/");
+  const p=page||"today";
+  renderNav(p==="instrument"?"charts":p==="heatmap"?"today":p);
+  window.scrollTo(0,0);
+  if(p==="today")viewToday();
+  else if(p==="charts")viewCharts(arg?decodeURIComponent(arg):null);
+  else if(p==="calendar")viewCalendar();
+  else if(p==="watchlists")viewWatchlists();
+  else if(p==="research")viewResearch();
+  else if(p==="heatmap")viewHeatmap();
+  else if(p==="instrument")viewInstrument(decodeURIComponent(arg||""));
+  else viewToday();
+}
+window.addEventListener("hashchange",route);
+</script>
+<script>
+/* ============ TODAY ============ */
+function nextCatalyst(){
+  const now=Date.now();
+  const econ=(DB.econ&&DB.econ.events||[]).filter(e=>new Date(e.date).getTime()>now-3600e3&&(e.impact==="High"||e.impact==="Medium"))
+    .sort((a,b)=>new Date(a.date)-new Date(b.date))[0];
+  const earn=(DB.earnings&&DB.earnings.events||[]).filter(e=>e.date>=new Date().toISOString().slice(0,10)).sort((a,b)=>a.date.localeCompare(b.date))[0];
+  return {econ,earn};
+}
+function viewToday(){
+  const snap=DB.snapshot||{cross_asset:[]};
+  const stories=(DB.news&&DB.news.stories)||[];
+  const lead=stories[0];
+  const {econ,earn}=nextCatalyst();
+  const boc=snap.usdcad_official;
+  const cells=snap.cross_asset.map(c=>{
+    if(c.error)return `<div class="cell"><div class="lbl">${esc(c.label)}</div><div class="meta">unavailable</div></div>`;
+    let chg;
+    if(c.symbol==="^TNX")chg=`<span class="${cls(c.changeBps)}">${arrow(c.changeBps)} ${c.changeBps>0?"+":""}${c.changeBps??"—"} bp</span> · ${fmtPct(c.changePct)}`;
+    else chg=`<span class="${cls(c.changePct)}">${arrow(c.changePct)} ${fmtSigned(c.change)} (${fmtPct(c.changePct)})</span>`;
+    return `<div class="cell"><div class="lbl">${esc(c.label)} <span class="typ">${esc(c.type)}</span></div>
+      <div class="px num">${c.symbol==="^TNX"?fmtN(c.price,3)+"%":fmtN(c.price, c.price>500?2:4)}</div><div class="chg num">${chg}</div>
+      <div class="meta">${c.marketTime?etDate(c.marketTime*1000):""}</div></div>`;
+  }).join("");
+  app.innerHTML=`
+  ${staleBanner()}
+  <div class="meta" style="margin-bottom:8px">${esc(etFull(Date.now()))} · <b style="color:var(--text)">${esc(marketStatus().label)}</b> · Schedule-based status ( exchange holidays not modelled )</div>
+  ${lead?`<div class="card lead"><div class="kicker">Lead story · ${esc(lead.publisher)} · ${ago(lead.ts*1000)}</div>
+    <h3><a href="${esc(lead.link)}" target="_blank" rel="noopener">${esc(lead.title)}</a></h3>
+    <div class="chips">${lead.assets.map(a=>`<button class="pill" onclick="location.hash='${instLink(a)}'">${esc(a)}</button>`).join("")}
+    ${lead.coverage>1?`<span class="pill hot">${lead.coverage} outlets covering</span>`:""}</div>
+    <div class="why"><b>Why it matters</b>${esc(lead.why)}</div></div>`:`<div class="card">No headlines loaded.</div>`}
+  <h2 class="sec">Cross-asset board</h2>
+  <div class="xasset">${cells}</div>
+  ${boc&&boc.rate?`<div class="meta" style="margin-top:6px">USD/CAD official (Bank of Canada, ${esc(boc.date)}): <span class="num">${boc.rate}</span>${boc.prevRate?` vs ${boc.prevRate} on ${esc(boc.prevDate)}`:""} — daily rate, differs from intraday quote above.</div>`:""}
+  <h2 class="sec">Next catalyst</h2>
+  <div class="grid2">
+    <div class="card"><div class="meta">ECONOMIC</div>${econ?`<div style="font-weight:600;margin-top:4px">${esc(econ.title)}</div>
+      <div class="meta">${esc(econ.country)} · ${etFull(new Date(econ.date).getTime())} · Impact: ${esc(econ.impact)}${econ.forecast?` · Consensus ${esc(econ.forecast)}`:""}${econ.previous?` · Previous ${esc(econ.previous)}`:""}</div>`
+      :`<div class="meta" style="margin-top:4px">No upcoming medium/high-impact US or Canadian release in the loaded week.</div>`}
+      <div style="margin-top:8px"><button class="btn" onclick="location.hash='#/calendar'">Open calendar</button></div></div>
+    <div class="card"><div class="meta">EARNINGS</div>${earn?`<div style="font-weight:600;margin-top:4px"><button onclick="location.hash='${instLink(earn.symbol)}'" style="font-weight:700;color:var(--accent)">${esc(earn.symbol)}</button> ${esc(earn.name||"")}</div>
+      <div class="meta">${esc(earn.date)} · ${earn.time==="time-pre-market"?"Before open":earn.time==="time-after-hours"?"After close":"Time unconfirmed"}${earn.epsForecast!=null?` · EPS est ${fmtN(earn.epsForecast)}`:""}</div>`
+      :`<div class="meta" style="margin-top:4px">No earnings in the loaded window.</div>`}
+      <div style="margin-top:8px"><button class="btn" onclick="location.hash='#/heatmap'">Market heatmap →</button></div></div>
+  </div>
+  <h2 class="sec">Top headlines <span style="text-transform:none;letter-spacing:0">(ranked · duplicates grouped)</span></h2>
+  <div class="rows">${stories.slice(1,16).map(s=>`
+    <div class="newsitem"><h4><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></h4>
+    <div class="meta">${esc(s.publisher)}${s.publishers&&s.publishers.length>1?" + "+(s.coverage-1)+" more":""} · ${ago(s.ts*1000)} · ${etTime(s.ts*1000)}</div>
+    <div class="chips">${s.assets.map(a=>`<button class="pill" onclick="location.hash='${instLink(a)}'">${esc(a)}</button>`).join("")}</div>
+    <div class="small muted" style="margin-top:5px"><i>Why it matters:</i> ${esc(s.why)}</div></div>`).join("")||'<div class="newsitem">No headlines available.</div>'}
+  </div>
+  <div class="meta" style="margin-top:8px">Headlines: ${esc((DB.news||{}).feed||"")} · Snapshot: ${esc(snap.feed||"")} · Observed ${snap.generated_at?etFull(new Date(snap.generated_at).getTime()):"—"}. Commentary (“why it matters”) is labelled and kept separate from headlines.</div>
+  <h2 class="sec">Market Pulse watchlist</h2>
+  <div class="rows">${getLists()[0].symbols.map(s=>symRow(s)).join("")}</div>
+  <footer class="foot">Sources &amp; limits: quotes are delayed/end-of-day per exchange rules via Yahoo Finance — not a real-time feed. See Research → Data sources for the full verification table. Not investment advice.</footer>`;
+}
+/* ============ CHART ENGINE (canvas) ============ */
+function sma(rows,period,idx){if(idx<period-1)return null;let s=0;for(let i=idx-period+1;i<=idx;i++)s+=rows[i][4];return s/period}
+let CH={sym:"NVDA",mode:"candles",range:"1Y",tf:"daily",ma50:true,ma200:false,bench:false,data:null,view:null,cross:null};
+const RANGES={"1D":{tf:"intraday",n:9999},"5D":{tf:"intraday",n:9999},"1M":{tf:"daily",days:31},"3M":{tf:"daily",days:93},"6M":{tf:"daily",days:186},"1Y":{tf:"daily",days:366},"5Y":{tf:"daily",days:366*5+2},"Wk":{tf:"weekly",n:9999},"Mo":{tf:"weekly",n:9999}};
+function chartRows(){
+  const d=CH.data; if(!d)return[];
+  const cfg=RANGES[CH.range]; const all=d[cfg.tf]||[];
+  if(cfg.tf==="intraday"){if(CH.range==="1D"){const lastDay=all.length?new Date(all[all.length-1][0]*1000).toDateString():"";return all.filter(r=>new Date(r[0]*1000).toDateString()===lastDay)}return all}
+  if(cfg.days){const cut=all.length?all[all.length-1][0]-cfg.days*86400:0;return all.filter(r=>r[0]>=cut)}
+  return all;
+}
+function drawChart(){
+  const cv=$("#cv"); if(!cv)return;
+  const rows=chartRows(); const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth,H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr;
+  const x=cv.getContext("2d"); x.scale(dpr,dpr); x.clearRect(0,0,W,H);
+  if(!rows.length){x.fillStyle="#5d6a80";x.font="13px sans-serif";x.fillText("No candle data for this range.",14,30);$("#ohlc").textContent="";return}
+  const view=CH.view||[0,rows.length]; let [i0,i1]=view; i0=Math.max(0,i0); i1=Math.min(rows.length,i1);
+  const vis=rows.slice(i0,i1); if(vis.length<2){CH.view=null;return drawChart()}
+  const padR=54,padB=18,padT=8,volH=Math.round(H*0.14),priceH=H-volH-padB-padT;
+  let hi=-1e18,lo=1e18; vis.forEach(r=>{hi=Math.max(hi,r[2]);lo=Math.min(lo,r[3])});
+  if(CH.mode==="line"||CH.bench){vis.forEach(r=>{hi=Math.max(hi,r[4]);lo=Math.min(lo,r[4])})}
+  const pd=(hi-lo)*0.06||1; hi+=pd; lo-=pd;
+  const X=i=>padR+(i/(vis.length-1))*(W-padR-8), Y=v=>padT+((hi-v)/(hi-lo))*priceH;
+  x.strokeStyle="#232c40";x.fillStyle="#93a0b4";x.font="10.5px sans-serif";x.lineWidth=1;
+  for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4,y=Y(v);x.beginPath();x.moveTo(padR,y);x.lineTo(W-4,y);x.stroke();x.fillText(fmtN(v,v<10?3:2),4,y+3)}
+  const step=Math.max(1,Math.floor(vis.length/5));
+  for(let i=0;i<vis.length;i+=step){const d=new Date(vis[i][0]*1000);const lbl=CH.tf==="intraday"?etTime(vis[i][0]*1000).replace(" ET",""):etFmt(vis[i][0]*1000,{month:"short",day:"numeric",year:vis.length>400?"2-digit":undefined});x.fillText(lbl,X(i)-12,H-4)}
+  let vmax=0; vis.forEach(r=>vmax=Math.max(vmax,r[5]||0));
+  const bw=Math.max(1,(W-padR-8)/vis.length);
+  vis.forEach((r,i)=>{if(!r[5]||!vmax)return;const h=(r[5]/vmax)*volH;x.fillStyle=r[4]>=r[1]?"rgba(34,192,122,.45)":"rgba(240,82,79,.45)";x.fillRect(X(i)-bw*0.32,H-padB-h,bw*0.64,h)});
+  if(CH.mode==="candles"){
+    vis.forEach((r,i)=>{const up=r[4]>=r[1];x.strokeStyle=up?"#22c07a":"#f0524f";x.fillStyle=up?"#22c07a":"#f0524f";
+      x.beginPath();x.moveTo(X(i),Y(r[2]));x.lineTo(X(i),Y(r[3]));x.stroke();
+      const yO=Y(r[1]),yC=Y(r[4]);x.fillRect(X(i)-bw*0.34,Math.min(yO,yC),bw*0.68,Math.max(1.4,Math.abs(yC-yO)))});
+  }else{
+    x.strokeStyle="#4f8cff";x.lineWidth=1.8;x.beginPath();
+    vis.forEach((r,i)=>{i?x.lineTo(X(i),Y(r[4])):x.moveTo(X(i),Y(r[4]))});x.stroke();x.lineWidth=1;
+  }
+  // benchmark % comparison (rebased to visible start)
+  if(CH.bench&&CH.benchRows){
+    const b=CH.benchRows; const t0=vis[0][0],t1=vis[vis.length-1][0];
+    const bv=b.filter(r=>r[0]>=t0&&r[0]<=t1);
+    if(bv.length>1&&vis[0][4]){const base=vis[0][4],bb=bv[0][4];
+      const pct=v=>v; let bhi=-1e18,blo=1e18; const series=vis.map(r=>null);
+      x.strokeStyle="#b78cff";x.setLineDash([5,4]);x.beginPath();let started=false;
+      bv.forEach(r=>{const rel=(r[4]/bb-1);const equiv=base*(1+rel);const xi=padR+((r[0]-t0)/((t1-t0)||1))*(W-padR-8);const y=Y(equiv);
+        if(y>padT&&y<padT+priceH){started?x.lineTo(xi,y):x.moveTo(xi,y);started=true}});
+      x.stroke();x.setLineDash([]);
+      $("#ohlc").innerHTML=`<span style="color:#b78cff">- - SPY benchmark (rebased %)</span> · main series also shown in price units; compare shapes, not levels. `+($("#ohlc").dataset.base||"");
+    }
+  }
+  const drawMA=(period,color)=>{
+    const all=d_fullRows(); x.strokeStyle=color;x.lineWidth=1.3;x.beginPath();let started=false;
+    for(let i=i0;i<i1;i++){const v=sma(all,period,i);if(v==null)continue;const px=X(i-i0),py=Y(v);if(py<padT||py>padT+priceH){started=false;continue}started?x.lineTo(px,py):x.moveTo(px,py);started=true}
+    x.stroke();x.lineWidth=1;
+  };
+  function d_fullRows(){const cfg=RANGES[CH.range];return (CH.data[cfg.tf]||[])}
+  if(CH.ma50)drawMA(50,"#f5b83d");
+  if(CH.ma200)drawMA(200,"#b78cff");
+  if(CH.cross!=null&&vis[CH.cross]){
+    const i=CH.cross,r=vis[i];x.strokeStyle="#e8ecf3";x.setLineDash([3,3]);
+    x.beginPath();x.moveTo(X(i),padT);x.lineTo(X(i),H-padB);x.stroke();x.setLineDash([]);
+    const per=CH.tf==="weekly"?"wk":CH.tf==="intraday"?"":"d";
+    $("#ohlc").dataset.base=`${etFull(r[0]*1000)} · O ${fmtN(r[1])} H ${fmtN(r[2])} L ${fmtN(r[3])} C ${fmtN(r[4])}${r[5]?` · Vol ${(r[5]/1e6).toFixed(1)}M`:""}`;
+    $("#ohlc").textContent=$("#ohlc").dataset.base;
+  } else if(!CH.bench){$("#ohlc").textContent=vis.length?`${etDate(vis[0][0]*1000)} → ${etDate(vis[vis.length-1][0]*1000)} · ${vis.length} ${CH.tf==="weekly"?"weeks":CH.tf==="intraday"?"bars":"days"} · drag to pan · pinch/scroll to zoom · tap to inspect`:""}
+}
+function bindChartGestures(){
+  const cv=$("#cv"); if(!cv)return; let drag=null,pinch=null;
+  const posIdx=e=>{const r=cv.getBoundingClientRect();const rows=chartRows();const view=CH.view||[0,rows.length];const n=view[1]-view[0];
+    const fx=(e.clientX-r.left-54)/(r.width-54-8);return Math.max(0,Math.min(n-1,Math.round(fx*(n-1))))};
+  cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);drag={x:e.clientX,view:CH.view?[...CH.view]:null,moved:false}});
+  cv.addEventListener("pointermove",e=>{
+    if(drag){const rows=chartRows();const dx=e.clientX-drag.x;const per=(cv.clientWidth-62)/( (drag.view?drag.view[1]-drag.view[0]:rows.length) );
+      if(Math.abs(dx)>6&&drag.view){drag.moved=true;const shift=Math.round(-dx/per);const n=drag.view[1]-drag.view[0];
+        let a=Math.max(0,Math.min(rows.length-n,drag.view[0]+shift));CH.view=[a,a+n];CH.cross=null;drawChart()}
+    } else {CH.cross=posIdx(e);drawChart()}
+  });
+  cv.addEventListener("pointerup",e=>{if(drag&&!drag.moved){CH.cross=posIdx(e);drawChart()}drag=null});
+  cv.addEventListener("wheel",e=>{e.preventDefault();const rows=chartRows();const view=CH.view||[0,rows.length];const n=view[1]-view[0];
+    const f=e.deltaY>0?1.25:0.8;let nn=Math.max(10,Math.min(rows.length,Math.round(n*f)));const c=view[0]+posIdx(e);
+    let a=Math.max(0,Math.min(rows.length-nn,Math.round(c-nn/2)));CH.view=[a,a+nn];drawChart()},{passive:false});
+  cv.addEventListener("touchstart",e=>{if(e.touches.length===2){pinch={d:Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY),view:CH.view?[...CH.view]:null}}},{passive:true});
+  cv.addEventListener("touchmove",e=>{if(pinch&&e.touches.length===2){const rows=chartRows();const d2=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    const base=pinch.view||[0,rows.length];const n0=base[1]-base[0];let nn=Math.max(10,Math.min(rows.length,Math.round(n0*pinch.d/Math.max(20,d2))));
+    const c=(base[0]+base[1])/2;let a=Math.max(0,Math.min(rows.length-nn,Math.round(c-nn/2)));CH.view=[a,a+nn];drawChart()}},{passive:true});
+  cv.addEventListener("touchend",()=>pinch=null);
+}
+async function viewCharts(sym){
+  if(sym)CH.sym=sym;
+  const q=quoteOf(CH.sym);
+  app.innerHTML=`<h2 class="sec">Chart workspace</h2>
+  <div class="toolbar"><input type="search" id="symSearch" placeholder="Search ticker or name (e.g. NVDA, ENB.TO)…" value="">
+  <button class="btn" id="fsBtn">⛶ Full screen</button></div>
+  <div id="searchRes"></div>
+  <div class="card" style="margin-bottom:10px"><div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
+    <button style="font-size:22px;font-weight:800" onclick="location.hash='${instLink(CH.sym)}'">${esc(CH.sym)}</button>
+    <span class="muted">${q?esc(q.name):esc(CH.sym)} · ${q?esc(q.exchange)+" · "+esc(q.currency):""}</span>
+    ${q?`<span class="num" style="font-size:19px;font-weight:700">${fmtN(q.price)}</span><span class="num ${cls(q.changePct)}">${fmtPct(q.changePct)} today</span>`:""}
+  </div>
+  <div class="seg" id="rangeSeg">${Object.keys(RANGES).map(r=>`<button class="${CH.range===r?"on":""}" data-r="${r}">${r}</button>`).join("")}</div>
+  <div class="seg">
+    <button id="modeBtn" class="${CH.mode==="candles"?"on":""}">${CH.mode==="candles"?"Candlesticks":"Line"}</button>
+    <button id="ma50Btn" class="alt ${CH.ma50?"on":""}">MA 50</button>
+    <button id="ma200Btn" class="alt ${CH.ma200?"on":""}">MA 200 ${CH.tf==="weekly"?"(200-week)":""}</button>
+    <button id="benchBtn" class="alt ${CH.bench?"on":""}">vs SPY %</button>
+  </div>
+  <div id="chartWrap"><canvas class="chart" id="cv" style="height:340px"></canvas></div>
+  <div class="ohlc num" id="ohlc">Loading candles…</div>
+  <div class="meta" id="chartMeta"></div></div>
+  <div class="banner info">Feed status: delayed / end-of-day data via Yahoo Finance chart API (snapshot generated ${DB.snapshot?etFull(new Date(DB.snapshot.generated_at).getTime()):"—"}). This app has no real-time streaming entitlement — see Research → Data sources. Weekly candles are built from the exchange week (Mon–Fri ET session weeks); the 200-week SMA is calculated from 10 years of weekly history even when the visible window is shorter.</div>`;
+  const data=await loadCandles(CH.sym);
+  CH.data=data; CH.view=null; CH.cross=null;
+  CH.benchRows=null;
+  if(CH.bench){const b=await loadCandles("SPY");CH.benchRows=b?b[RANGES[CH.range].tf]||b.daily:null}
+  if(!data){$("#ohlc").textContent="No pre-fetched candle file for "+CH.sym+". The tracked universe covers ~110 large caps, indices, futures and TSX names — try a symbol from the heatmap or watchlist.";return}
+  $("#chartMeta").innerHTML=`Source: ${esc(data.feed)} · Symbol file generated ${etFull(new Date(data.generated_at).getTime())} · Timeframe: ${CH.tf} · ${CH.tf==="weekly"?"200-period MA = 200-week SMA":"200-period MA = 200-day SMA on daily view; switch range to “Wk” for weekly candles + 200-week SMA"}`;
+  drawChart(); bindChartGestures();
+  $("#rangeSeg").addEventListener("click",async e=>{const b=e.target.closest("[data-r]");if(!b)return;CH.range=b.dataset.r;CH.tf=RANGES[CH.range].tf;CH.view=null;CH.cross=null;
+    if(CH.bench){const bb=await loadCandles("SPY");CH.benchRows=bb?bb[CH.tf]||bb.daily:null}
+    viewChartsRefresh()});
+  function viewChartsRefresh(){document.querySelectorAll("#rangeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.r===CH.range));
+    $("#ma200Btn").textContent="MA 200 "+(CH.tf==="weekly"?"(200-week)":"");drawChart()}
+  $("#modeBtn").onclick=e=>{CH.mode=CH.mode==="candles"?"line":"candles";e.target.textContent=CH.mode==="candles"?"Candlesticks":"Line";e.target.classList.toggle("on",CH.mode==="candles");drawChart()};
+  $("#ma50Btn").onclick=e=>{CH.ma50=!CH.ma50;e.target.classList.toggle("on",CH.ma50);drawChart()};
+  $("#ma200Btn").onclick=e=>{CH.ma200=!CH.ma200;e.target.classList.toggle("on",CH.ma200);drawChart()};
+  $("#benchBtn").onclick=async e=>{CH.bench=!CH.bench;e.target.classList.toggle("on",CH.bench);
+    if(CH.bench&&!CH.benchRows){const bb=await loadCandles("SPY");CH.benchRows=bb?bb[CH.tf]||bb.daily:null}drawChart()};
+  $("#fsBtn").onclick=()=>{const w=$("#chartWrap");if(w.requestFullscreen)w.requestFullscreen();setTimeout(drawChart,350)};
+  const si=$("#symSearch");
+  si.addEventListener("input",()=>{const v=si.value.trim().toLowerCase();const box=$("#searchRes");
+    if(v.length<1){box.innerHTML="";return}
+    const all=Object.values((DB.quotes||{}).quotes||{}).filter(q=>q.symbol.toLowerCase().includes(v)||q.name.toLowerCase().includes(v)).slice(0,8);
+    box.innerHTML=`<div class="rows" style="margin-bottom:10px">${all.map(q=>`<button class="rowitem" onclick="location.hash='#/charts/${encodeURIComponent(q.symbol)}'"><div class="grow"><div class="t num">${esc(q.symbol)}</div><div class="s">${esc(q.name)} · ${esc(q.exchange)} · ${esc(q.currency)}</div></div><div class="right num">${fmtN(q.price)}</div></button>`).join("")||'<div class="rowitem">No match in tracked universe</div>'}</div>`});
+}
+/* ============ INSTRUMENT ============ */
+async function viewInstrument(sym){
+  const q=quoteOf(sym);
+  const stories=((DB.news||{}).stories||[]).filter(s=>s.assets.includes(sym)||(q&&s.title.toLowerCase().includes(q.name.toLowerCase().split(" ")[0])));
+  const ne=nextEarnings(sym);
+  const inLists=getLists().filter(l=>l.symbols.includes(sym)).map(l=>l.name);
+  app.innerHTML=`<button class="btn" onclick="history.back()">← Back</button>
+  <div class="card" style="margin-top:10px"><div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
+    <span style="font-size:26px;font-weight:800">${esc(sym)}</span><span class="muted">${q?esc(q.name):""}</span>
+    <span class="pill">${q?esc(q.exchange):""}</span><span class="pill">${q?esc(q.currency):""}</span>
+    ${q&&q.sector?`<span class="pill">${esc(q.sector)}</span>`:""}</div>
+    ${q?`<div style="margin-top:8px"><span class="num" style="font-size:30px;font-weight:800">${fmtN(q.price)}</span>
+    <span class="num ${cls(q.changePct)}" style="font-size:17px">${fmtSigned(q.change)} (${fmtPct(q.changePct)}) today</span></div>
+    <div style="margin:10px 0">${sparkSVG(sym,300,54)}</div>
+    <dl class="kv"><dt>Week</dt><dd class="num ${cls(q.weekPct)}">${fmtPct(q.weekPct)}</dd>
+    <dt>Month</dt><dd class="num ${cls(q.monthPct)}">${fmtPct(q.monthPct)}</dd>
+    <dt>Quote as of</dt><dd>${etFull(q.asof*1000)} (delayed/EOD)</dd>
+    <dt>Next earnings</dt><dd>${ne?esc(ne.date)+" · "+(ne.time==="time-pre-market"?"Before open":ne.time==="time-after-hours"?"After close":"Time unconfirmed"):"Not in loaded calendar window"}</dd>
+    <dt>On your lists</dt><dd>${inLists.length?esc(inLists.join(", ")):"—"}</dd></dl>`
+    :`<div class="banner info" style="margin-top:10px">Index / cross-asset instrument. Quote is on the Today board; chart history below.</div>`}
+    <div class="toolbar"><button class="btn primary" onclick="location.hash='#/charts/${encodeURIComponent(sym)}'">Open chart</button>
+    <button class="btn" onclick="addToListPrompt('${esc(sym)}')">＋ Add to watchlist</button></div></div>
+  <h2 class="sec">Related headlines</h2>
+  <div class="rows">${stories.length?stories.map(s=>`<div class="newsitem"><h4><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></h4><div class="meta">${esc(s.publisher)} · ${ago(s.ts*1000)}</div></div>`).join(""):'<div class="newsitem">No current headlines mention this instrument.</div>'}</div>
+  <h2 class="sec">Next catalyst</h2>
+  <div class="card">${ne?`Earnings on <b>${esc(ne.date)}</b>${ne.epsForecast!=null?` — consensus EPS ${fmtN(ne.epsForecast)}`:" — no EPS consensus in feed"}. See Calendar for the full week.`:`No dated catalyst in the loaded calendar window for ${esc(sym)}.`}</div>`;
+  const data=await loadCandles(sym);
+  if(data){const rows=data.daily||[];const last=rows[rows.length-1];
+    if(last){const el=document.createElement("div");el.className="meta";el.style.marginTop="10px";
+      el.textContent=`Chart history available: ${(data.daily||[]).length} daily bars, ${(data.weekly||[]).length} weekly bars (enough for the 200-week SMA: ${((data.weekly||[]).length>=200)?"yes":"not yet — history starts "+(data.weekly&&data.weekly[0]?etDate(data.weekly[0][0]*1000):"?")}).`;
+      app.appendChild(el)}}
+}
+</script>
+<script>
+/* ============ WATCHLISTS (storage first — calendar filters use it) ============ */
+const WL_KEY="mt.watchlists.v1";
+function getLists(){
+  try{const j=JSON.parse(localStorage.getItem(WL_KEY));if(j&&j.length)return j}catch(e){}
+  return [{id:"pulse",name:"Market Pulse",symbols:["SPY","QQQ","IWM","GLD","NVDA","CEG","ENB.TO"]}];
+}
+function saveLists(l){localStorage.setItem(WL_KEY,JSON.stringify(l))}
+let WL={listId:null,sort:"day"};
+function allWatched(){const s=new Set();getLists().forEach(l=>l.symbols.forEach(x=>s.add(x)));return s}
+function addToListPrompt(sym){
+  const lists=getLists();const d=$("#sheet");
+  d.innerHTML=`<h3 style="margin-top:0">Add ${esc(sym)} to…</h3>${lists.map(l=>`<button class="rowitem" onclick="doAddToList('${l.id}','${esc(sym)}')"><div class="grow"><div class="t">${esc(l.name)}</div><div class="s">${l.symbols.length} symbols</div></div></button>`).join("")}
+  <div class="toolbar"><button class="btn" onclick="document.querySelector('#sheet').close()">Cancel</button></div>`;
+  d.showModal();
+}
+function doAddToList(id,sym){const lists=getLists();const l=lists.find(x=>x.id===id);if(l&&!l.symbols.includes(sym)){l.symbols.push(sym);saveLists(lists)}
+  $("#sheet").close();alert(sym+" added to "+(l?l.name:"list"));route()}
+let WLsort="day";
+function viewWatchlists(){
+  const lists=getLists(); if(!WL.listId||!lists.find(l=>l.id===WL.listId))WL.listId=lists[0].id;
+  const cur=lists.find(l=>l.id===WL.listId);
+  const key={day:"changePct",week:"weekPct",month:"monthPct"}[WLsort];
+  const rows=[...cur.symbols].sort((a,b)=>((quoteOf(b)||{})[key]??-1e9)-((quoteOf(a)||{})[key]??-1e9));
+  app.innerHTML=`<h2 class="sec">Watchlists</h2>
+  <div class="seg">${lists.map(l=>`<button class="${l.id===cur.id?"on":""}" onclick="WL.listId='${l.id}';viewWatchlists()">${esc(l.name)} (${l.symbols.length})</button>`).join("")}
+  <button onclick="newList()">＋ New list</button></div>
+  <div class="toolbar">
+    <button class="btn" onclick="renameList('${cur.id}')">Rename</button>
+    <button class="btn" onclick="moveList('${cur.id}',-1)">↑ Move list</button>
+    <button class="btn" onclick="moveList('${cur.id}',1)">↓ Move list</button>
+    <button class="btn danger" onclick="deleteList('${cur.id}')">Delete list</button>
+  </div>
+  <div class="toolbar"><input type="search" id="addSym" placeholder="Add symbol — search name or ticker (ENB vs ENB.TO)…"><span class="meta">Sort:</span>
+  <div class="seg" style="margin:0">${["day","week","month"].map(s=>`<button class="${WLsort===s?"on":""}" onclick="WLsort='${s}';viewWatchlists()">${s}</button>`).join("")}</div></div>
+  <div id="addRes"></div>
+  <div class="rows">${rows.map(sym=>{const q=quoteOf(sym);if(!q)return `<div class="rowitem"><div class="grow"><div class="t">${esc(sym)}</div><div class="s">Not in tracked universe — no quote</div></div><button class="btn danger" onclick="removeSym('${cur.id}','${esc(sym)}')">Remove</button></div>`;
+    const ne=nextEarnings(sym);
+    return `<div class="rowitem"><button class="grow" style="text-align:left" onclick="location.hash='${instLink(sym)}'">
+      <div class="t num">${esc(sym)} <span class="meta">${esc(q.exchange)} · ${esc(q.currency)}</span></div>
+      <div class="s">${esc(q.name)}${ne?" · Earn "+esc(ne.date):""}</div></button>
+      ${sparkSVG(sym,56,20)}
+      <div class="right"><div class="num" style="font-weight:600">${fmtN(q.price)}</div>
+      <div class="num small"><span class="${cls(q.changePct)}">${fmtPct(q.changePct)} d</span> · <span class="${cls(q.weekPct)}">${fmtPct(q.weekPct)} w</span> · <span class="${cls(q.monthPct)}">${fmtPct(q.monthPct)} m</span></div></div>
+      <button class="btn danger" aria-label="Remove ${esc(sym)}" onclick="removeSym('${cur.id}','${esc(sym)}')">✕</button></div>`}).join("")||'<div class="rowitem">This list is empty — search above to add symbols.</div>'}
+  </div>
+  <div class="meta" style="margin-top:6px">Tap a row for the instrument page (full figures). Prices delayed/EOD, as of each symbol's last candle. Lists persist on this device (localStorage).</div>
+  <h2 class="sec">Backup</h2>
+  <div class="toolbar"><button class="btn" onclick="exportLists()">Export lists (JSON)</button>
+  <label class="btn" style="display:inline-flex;align-items:center">Import lists<input type="file" accept=".json,application/json" style="display:none" onchange="importLists(this)"></label></div>`;
+  const si=$("#addSym");
+  si.addEventListener("input",()=>{const v=si.value.trim().toLowerCase();const box=$("#addRes");
+    if(!v){box.innerHTML="";return}
+    const all=Object.values((DB.quotes||{}).quotes||{}).filter(q=>q.symbol.toLowerCase().includes(v)||q.name.toLowerCase().includes(v)).slice(0,8);
+    box.innerHTML=`<div class="rows" style="margin-bottom:10px">${all.map(q=>`<button class="rowitem" onclick="addSymDirect('${cur.id}','${esc(q.symbol)}')"><div class="grow"><div class="t num">${esc(q.symbol)}</div><div class="s">${esc(q.name)} · ${esc(q.exchange)} · ${esc(q.currency)}</div></div><span class="pill">＋ Add</span></button>`).join("")||'<div class="rowitem">No match in tracked universe</div>'}</div>`});
+}
+function addSymDirect(id,sym){const lists=getLists();const l=lists.find(x=>x.id===id);if(l&&!l.symbols.includes(sym)){l.symbols.push(sym);saveLists(lists)}viewWatchlists()}
+function removeSym(id,sym){const lists=getLists();const l=lists.find(x=>x.id===id);if(l){l.symbols=l.symbols.filter(s=>s!==sym);saveLists(lists)}viewWatchlists()}
+function newList(){const n=prompt("Name for the new watchlist:");if(!n)return;const lists=getLists();const id="l"+Date.now();lists.push({id,name:n,symbols:[]});saveLists(lists);WL.listId=id;viewWatchlists()}
+function renameList(id){const lists=getLists();const l=lists.find(x=>x.id===id);const n=prompt("Rename list:",l.name);if(n){l.name=n;saveLists(lists)}viewWatchlists()}
+function deleteList(id){const lists=getLists();if(lists.length<=1){alert("Keep at least one list.");return}
+  if(!confirm("Delete this list?"))return;saveLists(lists.filter(x=>x.id!==id));WL.listId=null;viewWatchlists()}
+function moveList(id,dir){const lists=getLists();const i=lists.findIndex(x=>x.id===id);const j=i+dir;if(j<0||j>=lists.length)return;
+  [lists[i],lists[j]]=[lists[j],lists[i]];saveLists(lists);viewWatchlists()}
+function exportLists(){
+  const blob=new Blob([JSON.stringify({app:"market-tracker",version:1,lists:getLists()},null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="watchlists.json";a.click();URL.revokeObjectURL(a.href);
+}
+function importLists(input){const f=input.files[0];if(!f)return;f.text().then(t=>{try{const j=JSON.parse(t);const lists=j.lists||j;
+  if(!Array.isArray(lists)||!lists.every(l=>l.name&&Array.isArray(l.symbols)))throw 0;
+  saveLists(lists.map(l=>({id:l.id||("l"+Math.random().toString(36).slice(2,8)),name:String(l.name),symbols:l.symbols.map(String)})));
+  WL.listId=null;viewWatchlists();alert("Lists imported.")}catch(e){alert("That file is not a valid watchlist export.")}})}
+/* ============ CALENDAR ============ */
+let CAL={filter:"all",span:"week"};
+function calEvents(){
+  const out=[];
+  (DB.econ&&DB.econ.events||[]).forEach(e=>out.push({kind:"econ",ts:new Date(e.date).getTime(),dateStr:etDate(new Date(e.date).getTime()),...e}));
+  (DB.earnings&&DB.earnings.events||[]).forEach(e=>{const ts=new Date(e.date+"T12:00:00").getTime();
+    out.push({kind:"earn",ts,dateStr:e.date,...e})});
+  return out.sort((a,b)=>a.ts-b.ts);
+}
+function viewCalendar(){
+  const now=Date.now();const watched=allWatched();
+  let evs=calEvents();
+  if(CAL.filter==="econ")evs=evs.filter(e=>e.kind==="econ");
+  if(CAL.filter==="earn")evs=evs.filter(e=>e.kind==="earn");
+  if(CAL.filter==="watch")evs=evs.filter(e=>e.kind==="earn"&&watched.has(e.symbol));
+  const dayMs=86400e3;const startOfToday=new Date(etFmt(now,{year:"numeric",month:"2-digit",day:"2-digit"})).getTime();
+  if(CAL.span==="day")evs=evs.filter(e=>Math.abs(e.ts-now)<dayMs*1.5);
+  if(CAL.span==="week")evs=evs.filter(e=>e.ts>now-dayMs&&e.ts<now+7*dayMs);
+  if(CAL.span==="month")evs=evs.filter(e=>e.ts>now-dayMs&&e.ts<now+31*dayMs);
+  const groups={};evs.forEach(e=>{const k=e.kind==="econ"?etDate(e.ts):e.dateStr;(groups[k]=groups[k]||[]).push(e)});
+  const surprise=(a,f)=>{const an=parseFloat(a),fn=parseFloat(f);if(isNaN(an)||isNaN(fn))return"";const d=an-fn;
+    return `<span class="surprise ${cls(d)}">${d>0?"+":""}${d.toFixed(2)} vs consensus</span>`};
+  app.innerHTML=`<h2 class="sec">Calendar — economic &amp; earnings (ET)</h2>
+  <div class="seg">${[["all","All events"],["econ","Economic"],["earn","Earnings"],["watch","Watchlist"]].map(([k,l])=>`<button class="${CAL.filter===k?"on":""}" onclick="CAL.filter='${k}';viewCalendar()">${l}</button>`).join("")}</div>
+  <div class="seg">${[["day","Day"],["week","Week"],["month","Month"]].map(([k,l])=>`<button class="alt ${CAL.span===k?"on":""}" onclick="CAL.span='${k}';viewCalendar()">${l}</button>`).join("")}</div>
+  ${Object.keys(groups).length?Object.entries(groups).map(([d,items])=>`<div class="evt-date">${esc(d)}</div><div class="rows">
+    ${items.map(e=>e.kind==="econ"?`<div class="rowitem"><div class="grow"><div class="t">${esc(e.title)} ${e.impact==="High"?'<span class="pill hot">High impact</span>':e.impact==="Medium"?'<span class="pill">Med</span>':""}</div>
+      <div class="s">${esc(e.country)} · ${etTime(e.ts)} · ${esc(e.source)}</div></div>
+      <div class="right small num">${e.actual?`Actual <b>${esc(e.actual)}</b><br>${surprise(e.actual,e.forecast)}`:`Cons ${esc(e.forecast||"—")}`}<br><span class="muted">Prev ${esc(e.previous||"—")}</span></div></div>`
+    :`<button class="rowitem" onclick="location.hash='${instLink(e.symbol)}'"><div class="grow"><div class="t num">${esc(e.symbol)} <span class="meta">${esc(e.name||"")}</span></div>
+      <div class="s">${e.time==="time-pre-market"?"Before open":e.time==="time-after-hours"?"After close":"Timing unconfirmed"} · ${e.confirmed?"Scheduled date (Nasdaq)":"Estimated date"} · Fiscal Q ${esc(e.fiscalQ||"—")}${watched.has(e.symbol)?' · ⭐ watchlist':""}</div></div>
+      <div class="right small num">${e.epsActual!=null?`EPS <b>${fmtN(e.epsActual)}</b> vs est ${fmtN(e.epsForecast)}<br><span class="${cls(e.surprisePct)}">Surprise ${fmtPct(e.surprisePct)}</span>`:e.epsForecast!=null?`EPS est ${fmtN(e.epsForecast)}`:"No EPS estimate"}</div></button>`).join("")}
+    </div>`).join(""):'<div class="card">No events match this filter in the loaded window. Economic feed covers the current week (US &amp; Canada); earnings cover roughly −10 to +21 days for larger companies.</div>'}
+  <div class="meta" style="margin-top:10px">Economic: ${esc((DB.econ||{}).feed||"")} ${esc((DB.econ||{}).note||"")}<br>Earnings: ${esc((DB.earnings||{}).feed||"")} ${esc((DB.earnings||{}).note||"")} Revenue estimates are not supplied by the Nasdaq feed and are shown as unavailable rather than estimated. Rescheduled earnings move with the Nasdaq calendar on the next refresh.</div>`;
+}
+</script>
+<script>
+/* ============ HEATMAP ============ */
+let HEAT={period:"day",sector:null,list:false};
+function heatColor(v){
+  if(v==null)return"#2a3247";
+  const a=Math.min(1,Math.abs(v)/4);
+  return v>=0?`rgba(34,192,122,${0.18+0.62*a})`:`rgba(240,82,79,${0.18+0.62*a})`;
+}
+function viewHeatmap(){
+  const q=(DB.quotes||{}).quotes||{};
+  const key={day:"changePct",week:"weekPct",month:"monthPct"}[HEAT.period];
+  const names=Object.values(q).filter(x=>x.sector!=="ETF"&&x.capB>0);
+  const sectors={};names.forEach(x=>{(sectors[x.sector]=sectors[x.sector]||[]).push(x)});
+  const secAvg=s=>{const a=sectors[s].map(x=>x[key]).filter(v=>v!=null);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null};
+  let body="";
+  if(HEAT.sector&&sectors[HEAT.sector]){
+    const rows=[...sectors[HEAT.sector]].sort((a,b)=>(b[key]??-1e9)-(a[key]??-1e9));
+    body=`<button class="btn" onclick="HEAT.sector=null;viewHeatmap()">← All sectors</button>
+    <h2 class="sec">${esc(HEAT.sector)} — ranked (${HEAT.period})</h2>
+    <div class="rows">${rows.map(x=>`<button class="rowitem" onclick="location.hash='${instLink(x.symbol)}'">
+      <div class="grow"><div class="t num">${esc(x.symbol)}</div><div class="s">${esc(x.name)} · ~$${x.capB}B cap</div></div>
+      ${sparkSVG(x.symbol)}<div class="chgbox ${x[key]>0?"upb":x[key]<0?"downb":"flatb"} num">${fmtPct(x[key])}</div></button>`).join("")}</div>`;
+  } else if(HEAT.list){
+    const rows=[...names].sort((a,b)=>(b[key]??-1e9)-(a[key]??-1e9));
+    body=`<div class="rows">${rows.map(x=>`<button class="rowitem" onclick="location.hash='${instLink(x.symbol)}'">
+      <div class="grow"><div class="t num">${esc(x.symbol)} <span class="meta">${esc(x.sector)}</span></div><div class="s">${esc(x.name)}</div></div>
+      <div class="chgbox ${x[key]>0?"upb":x[key]<0?"downb":"flatb"} num">${fmtPct(x[key])}</div></button>`).join("")}</div>`;
+  } else {
+    body=Object.keys(sectors).sort((a,b)=>(secAvg(b)??-99)-(secAvg(a)??-99)).map(s=>{
+      const tiles=[...sectors[s]].sort((a,b)=>b.capB-a.capB);
+      return `<h2 class="sec"><button style="color:var(--muted);font:inherit;text-transform:inherit;letter-spacing:inherit" onclick="HEAT.sector='${esc(s)}';viewHeatmap()">${esc(s)} · avg <span class="${cls(secAvg(s))}">${fmtPct(secAvg(s))}</span> ›</button></h2>
+      <div class="heat" style="grid-template-columns:repeat(auto-fill,minmax(86px,1fr))">
+      ${tiles.map(x=>`<button class="tile" style="background:${heatColor(x[key])}" onclick="location.hash='${instLink(x.symbol)}'">
+        <div class="ts num">${esc(x.symbol)}</div><div class="tn">${esc(x.name)}</div><div class="tp num">${fmtPct(x[key])} · $${fmtN(x.price,0)}</div></button>`).join("")}</div>`;
+    }).join("");
+  }
+  app.innerHTML=`<h2 class="sec">U.S. + TSX large-cap heatmap</h2>
+  <div class="seg">${[["day","Daily"],["week","Weekly"],["month","Monthly"]].map(([k,l])=>`<button class="${HEAT.period===k?"on":""}" onclick="HEAT.period='${k}';viewHeatmap()">${l}</button>`).join("")}
+  <button class="alt ${HEAT.list?"on":""}" onclick="HEAT.list=!HEAT.list;viewHeatmap()">${HEAT.list?"Tiles":"Ranked list"}</button></div>
+  <div class="meta" style="margin-bottom:8px">Universe: curated ~110 large-cap U.S. &amp; TSX names (not the full S&P 500 — provider limits). Tile size ≈ market-cap weighted within sector; colour = ${HEAT.period} % change. Legend: <span class="up">■ gains</span> <span class="down">■ losses</span> — intensity grows to ±4%+. Also labelled with signed % so colour is never the only signal. Data: ${DB.quotes?etFull(new Date(DB.quotes.generated_at).getTime()):"—"} (delayed/EOD).</div>
+  ${body}`;
+}
+/* ============ RESEARCH ============ */
+let RES={tab:"themes",market:null,archDate:null};
+function viewResearch(){
+  const tabs=[["themes","Themes"],["recap","Daily / Weekly / Monthly"],["positioning","Hedge fund positioning"],["archive","Archive"],["sources","Data sources"]];
+  app.innerHTML=`<h2 class="sec">Research</h2><div class="seg">${tabs.map(([k,l])=>`<button class="${RES.tab===k?"on":""}" onclick="RES.tab='${k}';viewResearch()">${l}</button>`).join("")}</div><div id="resBody"></div>`;
+  ({themes:resThemes,recap:resRecap,positioning:resPositioning,archive:resArchive,sources:resSources})[RES.tab]();
+}
+function resThemes(){
+  const r=(DB.research||{}).recap||{};const themes=r.themes||[];
+  $("#resBody").innerHTML=`<div class="meta" style="margin-bottom:8px">${esc((DB.research||{}).feed||"")} Assessments dated ${esc(r.asof||"—")}.</div>
+  ${themes.map((t,i)=>`<div class="card" style="margin-bottom:10px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span class="pill hot">#${i+1}</span><b style="font-size:16.5px">${esc(t.title)}</b><span class="tag ${t.kind==="observation"?"obs":t.kind==="interpretation"?"interp":"scen"}">${esc(t.kind)}</span>
+    <span class="meta">${esc(t.asof)}</span></div>
+    <p style="margin:8px 0">${esc(t.what_changed)}</p>
+    <div class="small"><span class="muted">Exposed:</span> ${t.exposed.map(a=>`<button class="pill" onclick="location.hash='${instLink(a)}'">${esc(a)}</button>`).join(" ")}</div>
+    <div class="small" style="margin-top:6px"><span class="muted">Evidence:</span> ${t.evidence.map(esc).join(" · ")}</div>
+    <div class="small" style="margin-top:6px"><span class="muted">What would weaken it:</span> ${esc(t.what_would_weaken)}</div>
+    <div class="small" style="margin-top:6px"><span class="muted">Next catalyst:</span> ${esc(t.next_catalyst)}</div></div>`).join("")||'<div class="card">No themes computed yet.</div>'}`;
+}
+function resRecap(){
+  const r=(DB.research||{}).recap||{};const d=r.daily||{};
+  const secs=r.sector_month||[];
+  const arch=(DB.archive_index||{}); 
+  $("#resBody").innerHTML=`
+  <div class="card" style="margin-bottom:10px"><b>Daily recap</b> <span class="meta">(${esc(r.asof||"")}, verified figures only)</span>
+    <p class="small" style="margin:6px 0">S&amp;P 500 <span class="${cls(d.spx)}">${fmtPct(d.spx)}</span> · Nasdaq <span class="${cls(d.nasdaq)}">${fmtPct(d.nasdaq)}</span> · Russell 2000 <span class="${cls(d.rut)}">${fmtPct(d.rut)}</span> · VIX ${fmtN(d.vix,1)} · 10Y <span class="${cls(d.tnx_bps)}">${d.tnx_bps>0?"+":""}${d.tnx_bps??"—"} bp</span> · Oil <span class="${cls(d.oil)}">${fmtPct(d.oil)}</span> · Gold <span class="${cls(d.gold)}">${fmtPct(d.gold)}</span> · USD/CAD <span class="${cls(d.usdcad)}">${fmtPct(d.usdcad)}</span>.</p>
+    <p class="small muted" style="margin:0">Where a move's cause is not established by the data, this recap says so rather than inventing one: headline coverage is on Today, labelled separately from these figures.</p></div>
+  <div class="card" style="margin-bottom:10px"><b>Weekly / monthly leadership</b> <span class="meta">(1-month sector averages, tracked universe)</span>
+    <table><tr><th>Sector</th><th>Avg 1-mo</th><th>Names</th></tr>
+    ${secs.map(s=>`<tr><td>${esc(s.sector)}</td><td class="num ${cls(s.avgMonthPct)}">${fmtPct(s.avgMonthPct)}</td><td class="num">${s.names}</td></tr>`).join("")}</table>
+    <p class="small muted">Leadership = highest average 1-month return; laggards = lowest. Economic surprises are in Calendar (actual vs consensus). Upcoming catalysts are on Today and in Calendar.</p></div>
+  <div class="card"><b>Trend persistence</b><p class="small" style="margin:6px 0">The archive starts at launch (${esc(arch.start||"today")}). Weekly and monthly persistence views fill in as dated snapshots accumulate — compare any two archived days in the Archive tab. Nothing is backfilled or fabricated.</p></div>`;
+}
+async function resArchive(){
+  const idx=DB.archive_index||{dates:[]};
+  const dates=idx.dates||[];
+  const sel=RES.archDate||dates[dates.length-1];
+  $("#resBody").innerHTML=`<div class="meta" style="margin-bottom:8px">Archive starts ${esc(idx.start||"—")} (launch). Snapshots are the data as known at the time — not restated.</div>
+  <div class="seg">${dates.map(d=>`<button class="${d===sel?"on":""}" onclick="RES.archDate='${d}';resArchive()">${d}</button>`).join("")||"No snapshots yet"}</div><div id="archBody"></div>`;
+  if(!sel)return;
+  try{const r=await fetch(`data/archive/${sel}.json`);const j=await r.json();
+    const cross={};(j.snapshot.cross_asset||[]).forEach(c=>cross[c.symbol]=c);
+    $("#archBody").innerHTML=`<div class="card"><b>${esc(sel)} snapshot</b>
+    <p class="small">S&amp;P 500 ${fmtN((cross["^GSPC"]||{}).price)} (<span class="${cls((cross["^GSPC"]||{}).changePct)}">${fmtPct((cross["^GSPC"]||{}).changePct)}</span>) · 10Y ${fmtN((cross["^TNX"]||{}).price,3)}% · Oil ${fmtN((cross["CL=F"]||{}).price)} · Gold ${fmtN((cross["GC=F"]||{}).price)} · USD/CAD ${fmtN((cross["CAD=X"]||{}).price,4)}</p>
+    <p class="small muted">Themes that day: ${(j.recap.themes||[]).map(t=>esc(t.title)).join(" · ")||"—"}</p></div>`;
+  }catch(e){$("#archBody").innerHTML='<div class="card">Snapshot file unavailable.</div>'}
+}
+function resPositioning(){
+  const c=DB.cftc||{};const series=c.series||[];
+  if(!RES.market&&series.length)RES.market=series[0].market;
+  const sel=series.find(s=>s.market===RES.market)||series[0];
+  $("#resBody").innerHTML=`
+  <div class="card" style="margin-bottom:10px"><b>What this is — and is not</b>
+    <p class="small" style="margin:6px 0">${esc(c.category||"")} · Units: ${esc(c.units||"")} · ${esc(c.lag||"")}</p>
+    <p class="small muted" style="margin:0">This is weekly futures positioning for the CFTC “leveraged funds” category — the closest credible weekly proxy for hedge-fund positioning. It is <b>not</b> a complete record of hedge-fund stock purchases. Equity holdings are quarterly (13F, below). ETF flows, if shown elsewhere, cover all investors, not just hedge funds.</p></div>
+  <h2 class="sec">Where reported positioning changed most (latest week)</h2>
+  <div class="rows">${series.map(s=>`<button class="rowitem" onclick="RES.market='${esc(s.market)}';resPositioning()">
+    <div class="grow"><div class="t">${esc(s.market)}</div><div class="s">As of ${esc(s.asof)} (Tuesday) · Net ${fmtN(s.history[s.history.length-1].net,0)} contracts</div></div>
+    <div class="right small num">Δ net <span class="${cls(s.netChange)}" style="font-weight:700">${fmtSigned(s.netChange,0)}</span><br>
+    <span class="muted">Δ long ${fmtSigned(s.longChange,0)} · Δ short ${fmtSigned(s.shortChange,0)}</span></div></button>`).join("")||'<div class="rowitem">CFTC data unavailable.</div>'}</div>
+  ${sel?`<div class="card" style="margin-top:12px"><b>${esc(sel.market)}</b> <span class="meta">net leveraged-fund position, contracts, last ${sel.history.length} weeks</span>
+    <canvas class="chart" id="posCv" style="height:190px"></canvas>
+    <dl class="kv" style="margin-top:8px"><dt>Latest week</dt><dd>${esc(sel.asof)}</dd>
+    <dt>Long / Short</dt><dd class="num">${fmtN(sel.history[sel.history.length-1].long,0)} / ${fmtN(sel.history[sel.history.length-1].short,0)}</dd>
+    <dt>Net change</dt><dd class="num ${cls(sel.netChange)}">${fmtSigned(sel.netChange,0)} contracts</dd>
+    <dt>Source</dt><dd><a href="${esc(c.source_url)}" target="_blank" rel="noopener">CFTC TFF via public reporting API</a></dd></dl></div>`:""}
+  <h2 class="sec">Quarterly 13F holdings (separate dataset)</h2>
+  <div class="card"><p class="small" style="margin-top:0">${esc((DB.f13||{}).note||"")}</p>
+  ${((DB.f13||{}).funds||[]).map(f=>`<div class="rowitem" style="padding-left:0;padding-right:0"><div class="grow"><div class="t">${esc(f.fund)}</div><div class="s">CIK ${esc(f.cik)} · 13F-HR filings on SEC EDGAR</div></div>
+    <a class="btn" href="${esc(f.edgar_url)}" target="_blank" rel="noopener">EDGAR filings →</a></div>`).join("")}
+  <p class="small muted">Filing dates and reported holdings live in EDGAR; this app links to the authoritative list rather than re-stating holdings values, because a value change alone does not prove a purchase or sale.</p></div>`;
+  if(sel){const cv=$("#posCv");const dpr=window.devicePixelRatio||1;const W=cv.clientWidth,H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
+    const x=cv.getContext("2d");x.scale(dpr,dpr);const h=sel.history;const mx=Math.max(...h.map(r=>Math.abs(r.net)))*1.1||1;
+    const bw=(W-16)/h.length;x.strokeStyle="#232c40";x.beginPath();x.moveTo(8,H/2);x.lineTo(W-8,H/2);x.stroke();
+    h.forEach((r,i)=>{const bh=(r.net/mx)*(H/2-14);x.fillStyle=r.net>=0?"#22c07a":"#f0524f";x.fillRect(10+i*bw,H/2-(bh>0?bh:0),bw*0.62,Math.abs(bh))});
+    x.fillStyle="#93a0b4";x.font="10.5px sans-serif";x.fillText(h[0].date,10,H-4);const lt=h[h.length-1].date;x.fillText(lt,W-10-x.measureText(lt).width,H-4)}
+}
+function resSources(){
+  const rows=[
+   ["Cross-asset quotes & charts","Yahoo Finance chart API","Snapshot ~20 min on trading days (GitHub Actions); candles daily","Verified live 2026-11-25","Delayed/EOD per exchange — NOT real-time. No streaming entitlement."],
+   ["Company quotes / heatmap","Yahoo Finance daily candles","Daily + snapshot refresh","Verified live 2026-11-25","Curated ~110-name universe, not full S&P 500. Market caps approximate."],
+   ["USD/CAD official rate","Bank of Canada Valet API","Daily","Verified live 2026-11-25","Daily indicative rate; intraday quote shown separately from Yahoo."],
+   ["Headlines","Google News RSS (publisher feeds)","~20 min","Verified live 2026-11-25","Grouped by story similarity; ranking = source tier + coverage + recency. 'Why it matters' is labelled commentary."],
+   ["Earnings calendar","Nasdaq API","~20 min","Verified live 2026-11-25","EPS consensus/actual + surprise. Revenue not supplied by this feed — shown as unavailable. Dates scheduled/estimated unless reported."],
+   ["Economic calendar","ForexFactory feed via faireconomy.media","Weekly file, refreshed ~20 min","Verified live 2026-11-25 (current week)","US & Canada. Actual/forecast/previous; revisions not supplied. Next-week file was not published at test time."],
+   ["Positioning","CFTC TFF (Futures Only) via CFTC Socrata API","Weekly (Tue positions, Fri publication)","Verified live 2026-11-25","Leveraged-funds category, financial futures only. Metals/energy are in a different COT report (not TFF)."],
+   ["13F holdings","SEC EDGAR","Quarterly (45-day filing lag)","Link-out verified 2026-11-25","App links to EDGAR filing lists; it does not restate holdings."],
+   ["U.S. 10-year yield","Yahoo Finance ^TNX","With snapshot","Verified live 2026-11-25","Quoted in %; changes also shown in basis points. U.S. Treasury direct CSV was unreachable from the build environment."],
+  ];
+  $("#resBody").innerHTML=`<div class="card"><b>Feature-by-feature verification</b>
+  <table><tr><th>Feature</th><th>Source</th><th>Updates</th><th>Test</th><th>Limitation</th></tr>
+  ${rows.map(r=>`<tr>${r.map((c,i)=>`<td style="text-align:left">${esc(c)}</td>`).join("")}</tr>`).join("")}</table>
+  <p class="small muted">Failure isolation: each dataset is a separate file; if one provider fails, the previous good file is kept and the section shows its own timestamp. Offline: the last successful snapshot is cached on-device and labelled stale.</p></div>`;
+}
+/* ============ init ============ */
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+setInterval(renderHeader,60000);
+loadAll();
+</script>
+</body>
+</html>
