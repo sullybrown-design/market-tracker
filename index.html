@@ -285,6 +285,7 @@ function route(){
   else if(p==="research")viewResearch();
   else if(p==="heatmap")viewHeatmap();
   else if(p==="instrument")viewInstrument(decodeURIComponent(arg||""));
+  else if(p==="story")viewStory(parseInt(arg||"0",10));
   else viewToday();
 }
 window.addEventListener("hashchange",route);
@@ -317,7 +318,7 @@ function viewToday(){
   ${staleBanner()}
   <div class="meta" style="margin-bottom:8px">${esc(etFull(Date.now()))} · <b style="color:var(--text)">${esc(marketStatus().label)}</b> · Schedule-based status ( exchange holidays not modelled )</div>
   ${lead?`<div class="card lead"><div class="kicker">Lead story · ${esc(lead.publisher)} · ${ago(lead.ts*1000)}</div>
-    <h3><a href="${esc(lead.link)}" target="_blank" rel="noopener">${esc(lead.title)}</a></h3>
+    <h3><a href="#/story/0">${esc(lead.title)}</a></h3>
     <div class="chips">${lead.assets.map(a=>`<button class="pill" onclick="location.hash='${instLink(a)}'">${esc(a)}</button>`).join("")}
     ${lead.coverage>1?`<span class="pill hot">${lead.coverage} outlets covering</span>`:""}</div>
     <div class="why"><b>Why it matters</b>${esc(lead.why)}</div></div>`:`<div class="card">No headlines loaded.</div>`}
@@ -336,8 +337,8 @@ function viewToday(){
       <div style="margin-top:8px"><button class="btn" onclick="location.hash='#/heatmap'">Market heatmap →</button></div></div>
   </div>
   <h2 class="sec">Top headlines <span style="text-transform:none;letter-spacing:0">(ranked · duplicates grouped)</span></h2>
-  <div class="rows">${stories.slice(1,16).map(s=>`
-    <div class="newsitem"><h4><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></h4>
+  <div class="rows">${stories.slice(1,16).map((s,i)=>`
+    <div class="newsitem"><h4><a href="#/story/${i+1}">${esc(s.title)}</a></h4>
     <div class="meta">${esc(s.publisher)}${s.publishers&&s.publishers.length>1?" + "+(s.coverage-1)+" more":""} · ${ago(s.ts*1000)} · ${etTime(s.ts*1000)}</div>
     <div class="chips">${s.assets.map(a=>`<button class="pill" onclick="location.hash='${instLink(a)}'">${esc(a)}</button>`).join("")}</div>
     <div class="small muted" style="margin-top:5px"><i>Why it matters:</i> ${esc(s.why)}</div></div>`).join("")||'<div class="newsitem">No headlines available.</div>'}
@@ -512,7 +513,8 @@ async function viewInstrument(sym){
     <div class="toolbar"><button class="btn primary" onclick="location.hash='#/charts/${encodeURIComponent(sym)}'">Open chart</button>
     <button class="btn" onclick="addToListPrompt('${esc(sym)}')">＋ Add to watchlist</button></div></div>
   <h2 class="sec">Related headlines</h2>
-  <div class="rows">${stories.length?stories.map(s=>`<div class="newsitem"><h4><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></h4><div class="meta">${esc(s.publisher)} · ${ago(s.ts*1000)}</div></div>`).join(""):'<div class="newsitem">No current headlines mention this instrument.</div>'}</div>
+  <div class="rows">${stories.length?stories.map(s=>{const idx=((DB.news||{}).stories||[]).indexOf(s);
+    return `<div class="newsitem"><h4><a href="#/story/${idx}">${esc(s.title)}</a></h4><div class="meta">${esc(s.publisher)} · ${ago(s.ts*1000)}</div></div>`}).join(""):'<div class="newsitem">No current headlines mention this instrument.</div>'}</div>
   <h2 class="sec">Next catalyst</h2>
   <div class="card">${ne?`Earnings on <b>${esc(ne.date)}</b>${ne.epsForecast!=null?` — consensus EPS ${fmtN(ne.epsForecast)}`:" — no EPS consensus in feed"}. See Calendar for the full week.`:`No dated catalyst in the loaded calendar window for ${esc(sym)}.`}</div>`;
   const data=await loadCandles(sym);
@@ -765,6 +767,32 @@ function resSources(){
   <table><tr><th>Feature</th><th>Source</th><th>Updates</th><th>Test</th><th>Limitation</th></tr>
   ${rows.map(r=>`<tr>${r.map((c,i)=>`<td style="text-align:left">${esc(c)}</td>`).join("")}</tr>`).join("")}</table>
   <p class="small muted">Failure isolation: each dataset is a separate file; if one provider fails, the previous good file is kept and the section shows its own timestamp. Offline: the last successful snapshot is cached on-device and labelled stale.</p></div>`;
+}
+/* ============ STORY READER (in-app; no external article pages) ============ */
+function viewStory(idx){
+  const stories=(DB.news||{}).stories||[];
+  const s=stories[idx];
+  if(!s){app.innerHTML=`<div class="card">That story is no longer in the current pool — headlines refresh with each update. <button class="btn" onclick="location.hash='#/today'">Back to Today</button></div>`;return}
+  const b=s.brief||{};
+  app.innerHTML=`<button class="btn" onclick="history.back()">← Back</button>
+  <div class="card lead" style="margin-top:10px"><div class="kicker">In-app briefing · pooled coverage</div>
+    <h3 style="margin-top:6px">${esc(s.title)}</h3>
+    <div class="meta">${esc(s.publisher)} · ${etFull(s.ts*1000)} · ${ago(s.ts*1000)}${s.coverage>1?` · ${s.coverage} articles pooled`:""}</div>
+    <div class="chips">${s.assets.map(a=>`<button class="pill" onclick="location.hash='${instLink(a)}'">${esc(a)}</button>`).join("")}</div>
+    <p style="margin:12px 0 0">${esc(b.coverage_line||"")}</p>
+    ${b.variants&&b.variants.length?`<h2 class="sec">How other outlets headlined it</h2>
+      ${b.variants.map(v=>`<p class="small" style="margin:4px 0">“${esc(v)}”</p>`).join("")}`:""}
+    ${b.market_context&&b.market_context.length?`<h2 class="sec">Market context (verified figures)</h2>
+      ${b.market_context.map(c=>`<p class="small" style="margin:4px 0">${esc(c)}</p>`).join("")}`:""}
+    <div class="why"><b>Why it matters</b>${esc(s.why)}</div>
+    <p class="meta" style="margin-top:10px">${esc(b.label||"")}</p></div>
+  <h2 class="sec">Pooled coverage</h2>
+  <div class="rows">${(s.items||[{title:s.title,publisher:s.publisher,link:s.link,ts:s.ts}]).map(it=>`
+    <div class="rowitem"><div class="grow"><div class="t" style="white-space:normal">${esc(it.title)}</div>
+    <div class="s">${esc(it.publisher)} · ${ago(it.ts*1000)} · ${etTime(it.ts*1000)}</div></div>
+    <a class="btn" href="${esc(it.link)}" target="_blank" rel="noopener" aria-label="Open original article">↗</a></div>`).join("")}
+  </div>
+  <p class="meta" style="margin-top:8px">Stories open here by design — no Motley Fool-class sources are pooled (blocked at ingestion), and the ↗ is only there if you want a publisher's original. Full article text belongs to the publishers, so the app writes its own briefing from the pooled headlines and market data instead of copying articles.</p>`;
 }
 /* ============ init ============ */
 if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
