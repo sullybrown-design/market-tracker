@@ -169,7 +169,7 @@ async function loadJSON(name){
 }
 async function loadAll(bust){
   if(bust)BUST=Date.now();
-  const names=["snapshot.json","quotes.json","news.json","earnings.json","econ.json","cftc.json","f13.json","research.json","archive_index.json","releases.json"];
+  const names=["snapshot.json","quotes.json","news.json","earnings.json","econ.json","cftc.json","f13.json","research.json","archive_index.json","releases.json","redlist.json"];
   const res=await Promise.all(names.map(loadJSON));
   names.forEach((n,i)=>DB[n.replace(".json","")]=res[i]);
   renderHeader(); route();
@@ -576,6 +576,18 @@ function viewWatchlists(){
       <button class="btn danger" aria-label="Remove ${esc(sym)}" onclick="removeSym('${cur.id}','${esc(sym)}')">✕</button></div>`}).join("")||'<div class="rowitem">This list is empty — search above to add symbols.</div>'}
   </div>
   <div class="meta" style="margin-top:6px">Tap a row for the instrument page (full figures). Prices delayed/EOD, as of each symbol's last candle. Lists persist on this device (localStorage).</div>
+  ${((DB.redlist||{}).categories||[]).length?`<h2 class="sec">Red List 1.0 — your TradingView list, by category</h2>
+  <div class="meta" style="margin-bottom:8px">Transcribed from your screenshots. Labels show your TradingView symbol; prices are the Yahoo equivalent (noted where they differ). Tap any row for its full chart page.</div>
+  ${DB.redlist.categories.map(c=>`<h3 style="margin:14px 0 6px">${esc(c.name)} <span class="meta">(${c.items.length})</span></h3>
+  <div class="rows">${c.items.map(it=>{const q=quoteOf(it.sym);if(!q)return `<div class="rowitem"><div class="grow"><div class="t">${esc(it.tv)}</div><div class="s">${esc(it.name)} — quote pending</div></div></div>`;
+    return `<div class="rowitem"><button class="grow" style="text-align:left" onclick="location.hash='${instLink(it.sym)}'">
+      <div class="t num">${esc(it.tv)}${it.tv!==it.sym?` <span class="meta">→ ${esc(it.sym)}</span>`:""} <span class="meta">${esc(q.exchange)} · ${esc(q.currency)}</span></div>
+      <div class="s">${esc(it.name)}</div></button>
+      ${sparkSVG(it.sym,56,20)}
+      <div class="right"><div class="num" style="font-weight:600">${fmtN(q.price)}</div>
+      <div class="num small"><span class="${cls(q.changePct)}">${fmtPct(q.changePct)} d</span> · <span class="${cls(q.weekPct)}">${fmtPct(q.weekPct)} w</span> · <span class="${cls(q.monthPct)}">${fmtPct(q.monthPct)} m</span></div></div></div>`}).join("")}</div>`).join("")}
+  ${((DB.redlist||{}).unavailable||[]).length?`<h3 style="margin:14px 0 6px">On your list, no data feed</h3>
+  <div class="rows">${DB.redlist.unavailable.map(u=>`<div class="rowitem"><div class="grow"><div class="t">${esc(u.tv)}</div><div class="s">${esc(u.reason)}</div></div></div>`).join("")}</div>`:""}`:""}
   <h2 class="sec">Backup</h2>
   <div class="toolbar"><button class="btn" onclick="exportLists()">Export lists (JSON)</button>
   <label class="btn" style="display:inline-flex;align-items:center">Import lists<input type="file" accept=".json,application/json" style="display:none" onchange="importLists(this)"></label></div>`;
