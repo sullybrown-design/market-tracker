@@ -13,6 +13,7 @@ import json, os, re, sys, time, math, urllib.request, urllib.parse, xml.etree.El
 from datetime import datetime, timedelta, timezone, date
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from universe import UNIVERSE, BY_SYMBOL
+from redlist import REDLIST, UNAVAILABLE as RED_UNAVAILABLE, all_symbols as red_symbols, META as RED_META
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -142,8 +143,35 @@ def do_quotes():
         except Exception as e:
             print("quote fail", sym, e)
         time.sleep(0.12)
+    for sym in red_symbols():
+        if sym in quotes: continue
+        name, exch, cur, cat = RED_META.get(sym, (sym, "", "USD", "Red List"))
+        try:
+            meta, rows = yahoo_chart(sym, "3mo", "1d")
+            if len(rows) < 2: continue
+            last, prev = rows[-1], rows[-2]
+            def pct_ago(days, rows=rows, last=last):
+                idx = len(rows) - 1 - days
+                if idx < 0: return None
+                return round((last[4]/rows[idx][4] - 1) * 100, 2)
+            quotes[sym] = {"symbol": sym, "name": name, "sector": cat, "capB": 0,
+                           "exchange": exch, "currency": cur,
+                           "price": last[4], "change": round(last[4]-prev[4], 3),
+                           "changePct": round((last[4]/prev[4]-1)*100, 2),
+                           "weekPct": pct_ago(5), "monthPct": pct_ago(21),
+                           "asof": last[0], "spark": [r[4] for r in rows[-22:]]}
+        except Exception as e:
+            print("red quote fail", sym, e)
+        time.sleep(0.12)
     write_json("quotes.json", {"generated_at": NOW.isoformat(), "feed": "Yahoo Finance daily candles (EOD/delayed)",
                                "quotes": quotes})
+
+def do_redlist():
+    write_json("redlist.json", {"generated_at": NOW.isoformat(),
+        "source": "Sully's TradingView 'Red List 1.0', transcribed from screenshots 2026-11-25; Yahoo symbols verified against the chart API",
+        "categories": [{"name": cat, "items": [{"tv": tv, "sym": sym, "name": name} for (tv, sym, name, _e, _c) in items]}
+                       for (cat, items) in REDLIST],
+        "unavailable": [{"tv": tv, "reason": r} for (tv, r) in RED_UNAVAILABLE]})
 
 # ---------------- news ----------------
 QUERIES = [
@@ -518,7 +546,7 @@ def do_research(snapshot, quotes):
 # ---------------- candles ----------------
 def file_name(sym): return re.sub(r"[^A-Za-z0-9]+", "_", sym) + ".json"
 def do_candles():
-    syms = [u[0] for u in UNIVERSE] + ["^GSPC","^IXIC","^DJI","^RUT","^VIX","^TNX","CL=F","GC=F","CAD=X","^GSPTSE"]
+    syms = [u[0] for u in UNIVERSE] + ["^GSPC","^IXIC","^DJI","^RUT","^VIX","^TNX","CL=F","GC=F","CAD=X","^GSPTSE"] + red_symbols()
     for sym in syms:
         try:
             _, daily = yahoo_chart(sym, "5y", "1d")
@@ -526,6 +554,8 @@ def do_candles():
             try: _, intra = yahoo_chart(sym, "5d", "5m")
             except Exception: intra = []
             meta_u = BY_SYMBOL.get(sym)
+            if not meta_u and sym in RED_META:
+                _n, _e, _c, _cat = RED_META[sym]; meta_u = (sym, _n, _cat, 0, _e, _c)
             write_json(os.path.join("candles", file_name(sym)),
                        {"symbol": sym, "generated_at": NOW.isoformat(),
                         "name": meta_u[1] if meta_u else sym, "exchange": meta_u[4] if meta_u else "",
@@ -551,6 +581,8 @@ def main():
             qd = json.load(open(os.path.join(DATA, "quotes.json"))) if os.path.exists(os.path.join(DATA, "quotes.json")) else None
             do_news(qd)
         except Exception as e: keep_stale("news.json", e)
+        try: do_redlist()
+        except Exception as e: keep_stale("redlist.json", e)
         try: do_releases()
         except Exception as e: keep_stale("releases.json", e)
         try: do_earnings()
