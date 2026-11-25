@@ -287,9 +287,43 @@ def do_releases():
                                  "publisher": "Federal Reserve"})
     except Exception as e:
         print("releases fail", e)
+    # SEC press releases — also U.S. federal government works (public domain).
+    # SEC fair access requires a declared user agent with a contact.
+    try:
+        import html as htmllib
+        def sec_fetch(u):
+            req = urllib.request.Request(u, headers={"User-Agent": "Market Tracker sullybrown-design@users.noreply.github.com",
+                                                      "Accept": "text/html,application/rss+xml"})
+            with urllib.request.urlopen(req, timeout=20) as r: return r.read()
+        root = ET.fromstring(sec_fetch("https://www.sec.gov/news/pressreleases.rss"))
+        for it in list(root.iter("item"))[:6]:
+            title = (it.findtext("title") or "").strip()
+            link = (it.findtext("link") or "").strip()
+            pub = (it.findtext("pubDate") or "").strip()
+            if not title or not link: continue
+            text = ""
+            try:
+                page = sec_fetch(link).decode("utf-8", "ignore")
+                m = re.search(r"<main[^>]*>(.*?)</main>", page, re.S)
+                body = m.group(1) if m else ""
+                body = re.sub(r"<script.*?</script>|<style.*?</style>", "", body, flags=re.S)
+                txt = htmllib.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", body))).strip()
+                di = txt.find("Washington D.C")
+                if di > 0: txt = txt[di:]
+                text = txt[:6000] if len(txt) >= 400 else ""
+            except Exception as e:
+                print("sec release fetch fail", link, e)
+            try: ts = int(datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc).timestamp())
+            except Exception: ts = int(NOW.timestamp())
+            if text: out.append({"title": title, "link": link, "ts": ts, "text": text,
+                                 "source": "SEC press release (public domain — U.S. federal government work)",
+                                 "publisher": "SEC"})
+    except Exception as e:
+        print("sec releases fail", e)
+    out.sort(key=lambda r: -r["ts"])
     write_json("releases.json", {"generated_at": NOW.isoformat(),
-                                 "feed": "Federal Reserve press releases, full text (public domain)",
-                                 "releases": out})
+                                 "feed": "Official releases with full text: Federal Reserve + SEC (public domain)",
+                                 "releases": out[:12]})
 
 # ---------------- calendars ----------------
 def do_earnings():
