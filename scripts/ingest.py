@@ -163,6 +163,15 @@ def do_quotes():
         except Exception as e:
             print("red quote fail", sym, e)
         time.sleep(0.12)
+    # Safety: a wholesale provider failure must never overwrite good data with an empty file
+    # (observed 2026-11-25: a scheduled run wrote quotes:{} over a healthy file).
+    prev_n = 0
+    try:
+        prev_n = len(json.load(open(os.path.join(DATA, "quotes.json")))["quotes"])
+    except Exception: pass
+    if len(quotes) < max(20, int(0.5 * prev_n)):
+        print(f"quotes safety: only {len(quotes)} quotes vs previous {prev_n} — keeping previous file")
+        return
     write_json("quotes.json", {"generated_at": NOW.isoformat(), "feed": "Yahoo Finance daily candles (EOD/delayed)",
                                "quotes": quotes})
 
