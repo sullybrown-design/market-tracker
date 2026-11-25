@@ -250,6 +250,47 @@ def do_news(quotes=None):
     write_json("news.json", {"generated_at": NOW.isoformat(), "feed": "Google News RSS (publisher headlines, grouped by story)",
                              "stories": groups[:30]})
 
+# ---------------- official releases (public-domain full text) ----------------
+def do_releases():
+    """Federal Reserve releases are U.S. federal government works (public domain),
+    so their full text is stored and read in-app. Publisher articles are never copied."""
+    import html as htmllib
+    out = []
+    try:
+        root = ET.fromstring(fetch("https://www.federalreserve.gov/feeds/press_all.xml", timeout=15))
+        for it in list(root.iter("item"))[:8]:
+            title = (it.findtext("title") or "").strip()
+            link = (it.findtext("link") or "").strip()
+            pub = (it.findtext("pubDate") or "").strip()
+            if not title or not link: continue
+            text = ""
+            try:
+                page = fetch(link, timeout=15).decode("utf-8", "ignore")
+                m = re.search(r'id="article"(.*?)<div class="footer', page, re.S)
+                body = m.group(1) if m else ""
+                body = re.sub(r"<script.*?</script>|<style.*?</style>", "", body, flags=re.S)
+                txt = re.sub(r"<[^>]+>", " ", body)
+                txt = htmllib.unescape(re.sub(r"\s+", " ", txt)).strip()
+                txt = txt.replace("-->", " ").replace(" > ", " ")
+                # start at the release body: second appearance of the title, or the release-time line
+                idx = txt.find(title, 10)
+                if idx > 0: txt = txt[idx + len(title):].strip()
+                txt = re.sub(r"^For release at[^A-Z]*", "", txt).strip()
+                txt = re.sub(r"^(EST|EDT|a\.m\.|p\.m\.)[\s.]*Share\s+", "", txt).strip()
+                text = txt[:6000]
+            except Exception as e:
+                print("release fetch fail", link, e)
+            try: ts = int(datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc).timestamp())
+            except Exception: ts = int(NOW.timestamp())
+            if text: out.append({"title": title, "link": link, "ts": ts, "text": text,
+                                 "source": "Federal Reserve press release (public domain — U.S. federal government work)",
+                                 "publisher": "Federal Reserve"})
+    except Exception as e:
+        print("releases fail", e)
+    write_json("releases.json", {"generated_at": NOW.isoformat(),
+                                 "feed": "Federal Reserve press releases, full text (public domain)",
+                                 "releases": out})
+
 # ---------------- calendars ----------------
 def do_earnings():
     rows_out = []
@@ -476,6 +517,8 @@ def main():
             qd = json.load(open(os.path.join(DATA, "quotes.json"))) if os.path.exists(os.path.join(DATA, "quotes.json")) else None
             do_news(qd)
         except Exception as e: keep_stale("news.json", e)
+        try: do_releases()
+        except Exception as e: keep_stale("releases.json", e)
         try: do_earnings()
         except Exception as e: keep_stale("earnings.json", e)
         try: do_econ()
