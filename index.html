@@ -417,7 +417,9 @@ async function viewCharts(sym){
     if(CH.bench){const bb=await loadCandles("SPY");CH.benchRows=bb?bb[CH.tf]||bb.daily:null}
     viewChartsRefresh()});
   function viewChartsRefresh(){document.querySelectorAll("#rangeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.r===CH.range));
-    $("#ma200Btn").textContent="MA 200 "+(CH.tf==="weekly"?"(200-week)":"");drawChart()}
+    $("#ma200Btn").textContent="MA 200 "+(CH.tf==="weekly"?"(200-week)":"");
+    const cm=$("#chartMeta");if(cm&&CH.data)cm.innerHTML=`Source: ${esc(CH.data.feed)} · Symbol file generated ${etFull(new Date(CH.data.generated_at).getTime())} · Timeframe: ${CH.tf} · ${CH.tf==="weekly"?"200-period MA = 200-week SMA":"200-period MA = 200-day SMA on daily view; switch range to “Wk” for weekly candles + 200-week SMA"}`;
+    drawChart()}
   $("#modeBtn").onclick=e=>{CH.mode=CH.mode==="candles"?"line":"candles";e.target.textContent=CH.mode==="candles"?"Candlesticks":"Line";e.target.classList.toggle("on",CH.mode==="candles");drawChart()};
   $("#ma50Btn").onclick=e=>{CH.ma50=!CH.ma50;e.target.classList.toggle("on",CH.ma50);drawChart()};
   $("#ma200Btn").onclick=e=>{CH.ma200=!CH.ma200;e.target.classList.toggle("on",CH.ma200);drawChart()};
