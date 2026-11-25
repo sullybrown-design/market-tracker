@@ -118,6 +118,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 <body>
 <header class="top"><div class="row">
   <h1>📈 Market Tracker</h1>
+  <button id="updBtn" class="btn primary" style="min-height:36px;padding:6px 12px" onclick="updateNow()">↻ Update</button>
   <div class="sub" id="hdrStatus">Loading…</div>
 </div></header>
 <main id="app"><div class="skel">Loading market data…</div></main>
@@ -152,9 +153,10 @@ function marketStatus(now=new Date()){
 /* ============ data layer (snapshot + offline cache) ============ */
 const DB={};
 let dataStale=false, dataError="";
+let BUST=0;
 async function loadJSON(name){
   try{
-    const r=await fetch("data/"+name,{cache:"no-cache"});
+    const r=await fetch("data/"+name+(BUST?"?v="+BUST:""),{cache:BUST?"no-store":"no-cache"});
     if(!r.ok)throw new Error("HTTP "+r.status);
     const j=await r.json();
     localStorage.setItem("mt.cache."+name,JSON.stringify(j));
@@ -165,12 +167,63 @@ async function loadJSON(name){
     dataError=name+": "+e.message; return null;
   }
 }
-async function loadAll(){
+async function loadAll(bust){
+  if(bust)BUST=Date.now();
   const names=["snapshot.json","quotes.json","news.json","earnings.json","econ.json","cftc.json","f13.json","research.json","archive_index.json"];
   const res=await Promise.all(names.map(loadJSON));
   names.forEach((n,i)=>DB[n.replace(".json","")]=res[i]);
   renderHeader(); route();
 }
+/* ============ UPDATE BUTTON ============
+   No token: refreshes the app to the newest snapshot the ingestion pipeline has published.
+   With a GitHub token saved on this device (fine-grained PAT, Actions: write, this repo only):
+   dispatches a full re-ingestion on GitHub, waits for the new snapshot, then reloads. */
+const GH_REPO="sullybrown-design/market-tracker";
+function ghToken(){return localStorage.getItem("mt.gh.token")||""}
+async function dispatchIngest(){
+  const t=ghToken(); if(!t)return false;
+  const r=await fetch(`https://api.github.com/repos/${GH_REPO}/actions/workflows/ingest.yml/dispatches`,
+    {method:"POST",headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json","Content-Type":"application/json"},
+     body:JSON.stringify({ref:"main",inputs:{mode:"fast"}})});
+  return r.status===204;
+}
+async function updateNow(){
+  const btn=$("#updBtn"); const before=lastUpdate();
+  btn.disabled=true; btn.textContent="Updating…";
+  try{
+    if(ghToken()){
+      btn.textContent="Running update on GitHub…";
+      const ok=await dispatchIngest();
+      if(!ok){alert("GitHub rejected the update request — the saved token may be expired or lack Actions permission on this repo. Falling back to refreshing published data.");}
+      else{
+        // ingestion takes ~2-3 min; poll the published snapshot until it changes
+        for(let i=0;i<15;i++){
+          await new Promise(r=>setTimeout(r,20000));
+          btn.textContent="Updating… ("+(i+1)+"/15)";
+          try{const r=await fetch("data/snapshot.json?v="+Date.now(),{cache:"no-store"});
+            if(r.ok){const j=await r.json();const g=new Date(j.generated_at).getTime();
+              if(before&&g>before){break}}}catch(e){}
+        }
+      }
+    }
+    await loadAll(true);
+    const lu=lastUpdate();
+    btn.textContent=lu&&before&&lu>before?"✓ Updated":"✓ Latest data loaded";
+    if(!ghToken())setTimeout(()=>{if(confirm("Loaded the newest published snapshot ("+(lu?etFull(lu):"unknown time")+").\n\nFor a true one-tap re-run of the whole data pipeline, add a GitHub token (fine-grained, Actions: write, this repo only) — it's stored only on this device.\n\nAdd one now?"))tokenPrompt()},50);
+  }catch(e){btn.textContent="Update failed — retry"}
+  setTimeout(()=>{btn.disabled=false;btn.textContent="↻ Update"},2600);
+}
+function tokenPrompt(){
+  const d=$("#sheet");
+  d.innerHTML=`<h3 style="margin-top:0">One-tap pipeline updates</h3>
+  <p class="small muted">Create a token at github.com → Settings → Developer settings → Fine-grained tokens: repository access = only <b>market-tracker</b>, permission <b>Actions: Read and write</b>. Paste it here — it is stored only in this phone's local storage, never in the app code or repo.</p>
+  <input type="password" id="tokIn" placeholder="github_pat_…" style="width:100%" autocomplete="off">
+  <div class="toolbar"><button class="btn primary" onclick="saveToken()">Save token</button>
+  <button class="btn danger" onclick="localStorage.removeItem('mt.gh.token');document.querySelector('#sheet').close()">Remove saved token</button>
+  <button class="btn" onclick="document.querySelector('#sheet').close()">Cancel</button></div>`;
+  d.showModal();
+}
+function saveToken(){const v=$("#tokIn").value.trim();if(v)localStorage.setItem("mt.gh.token",v);$("#sheet").close();alert(v?"Token saved on this device. The Update button will now run a full data update on GitHub (≈2–3 min).":"No token entered.")}
 function lastUpdate(){
   const g=DB.snapshot&&DB.snapshot.generated_at; return g?new Date(g).getTime():null;
 }
@@ -187,7 +240,7 @@ function staleBanner(){
 function symFile(sym){return "data/candles/"+sym.replace(/[^A-Za-z0-9]+/g,"_")+".json"}
 async function loadCandles(sym){
   const key="mt.candles."+sym;
-  try{const r=await fetch(symFile(sym));if(!r.ok)throw 0;const j=await r.json();localStorage.setItem(key,JSON.stringify(j));return j}
+  try{const r=await fetch(symFile(sym)+(BUST?"?v="+BUST:""));if(!r.ok)throw 0;const j=await r.json();localStorage.setItem(key,JSON.stringify(j));return j}
   catch(e){const c=localStorage.getItem(key);return c?JSON.parse(c):null}
 }
 /* ============ shared bits ============ */
@@ -292,6 +345,10 @@ function viewToday(){
   <div class="meta" style="margin-top:8px">Headlines: ${esc((DB.news||{}).feed||"")} · Snapshot: ${esc(snap.feed||"")} · Observed ${snap.generated_at?etFull(new Date(snap.generated_at).getTime()):"—"}. Commentary (“why it matters”) is labelled and kept separate from headlines.</div>
   <h2 class="sec">Market Pulse watchlist</h2>
   <div class="rows">${getLists()[0].symbols.map(s=>symRow(s)).join("")}</div>
+  <div class="card" style="margin-top:14px"><b>Data updates</b>
+    <p class="small muted" style="margin:6px 0">The pipeline re-runs automatically every ~20 min in trading hours. The ↻ Update button (top of screen) pulls the newest published snapshot immediately${ghToken()?" — and with your saved token it also triggers a full re-run on GitHub (≈2–3 min)":""}. Candle files refresh daily.</p>
+    <div class="toolbar"><button class="btn primary" onclick="updateNow()">↻ Update now</button>
+    <button class="btn" onclick="tokenPrompt()">${ghToken()?"Manage update token":"Enable full pipeline updates"}</button></div></div>
   <footer class="foot">Sources &amp; limits: quotes are delayed/end-of-day per exchange rules via Yahoo Finance — not a real-time feed. See Research → Data sources for the full verification table. Not investment advice.</footer>`;
 }
 /* ============ CHART ENGINE (canvas) ============ */
