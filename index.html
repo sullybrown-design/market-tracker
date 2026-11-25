@@ -169,7 +169,7 @@ async function loadJSON(name){
 }
 async function loadAll(bust){
   if(bust)BUST=Date.now();
-  const names=["snapshot.json","quotes.json","news.json","earnings.json","econ.json","cftc.json","f13.json","research.json","archive_index.json"];
+  const names=["snapshot.json","quotes.json","news.json","earnings.json","econ.json","cftc.json","f13.json","research.json","archive_index.json","releases.json"];
   const res=await Promise.all(names.map(loadJSON));
   names.forEach((n,i)=>DB[n.replace(".json","")]=res[i]);
   renderHeader(); route();
@@ -286,6 +286,7 @@ function route(){
   else if(p==="heatmap")viewHeatmap();
   else if(p==="instrument")viewInstrument(decodeURIComponent(arg||""));
   else if(p==="story")viewStory(parseInt(arg||"0",10));
+  else if(p==="release")viewRelease(parseInt(arg||"0",10));
   else viewToday();
 }
 window.addEventListener("hashchange",route);
@@ -344,6 +345,10 @@ function viewToday(){
     <div class="small muted" style="margin-top:5px"><i>Why it matters:</i> ${esc(s.why)}</div></div>`).join("")||'<div class="newsitem">No headlines available.</div>'}
   </div>
   <div class="meta" style="margin-top:8px">Headlines: ${esc((DB.news||{}).feed||"")} · Snapshot: ${esc(snap.feed||"")} · Observed ${snap.generated_at?etFull(new Date(snap.generated_at).getTime()):"—"}. Commentary (“why it matters”) is labelled and kept separate from headlines.</div>
+  ${((DB.releases||{}).releases||[]).length?`<h2 class="sec">Official releases — full text in-app</h2>
+  <div class="rows">${(DB.releases.releases).map((r,i)=>`<button class="rowitem" onclick="location.hash='#/release/${i}'">
+    <div class="grow"><div class="t" style="white-space:normal">${esc(r.title)}</div>
+    <div class="s">${esc(r.publisher)} · ${etDate(r.ts*1000)} · Full text (public domain)</div></div><span class="pill">Read →</span></button>`).join("")}</div>`:""}
   <h2 class="sec">Market Pulse watchlist</h2>
   <div class="rows">${getLists()[0].symbols.map(s=>symRow(s)).join("")}</div>
   <div class="card" style="margin-top:14px"><b>Data updates</b>
@@ -793,6 +798,15 @@ function viewStory(idx){
     <a class="btn" href="${esc(it.link)}" target="_blank" rel="noopener" aria-label="Open original article">↗</a></div>`).join("")}
   </div>
   <p class="meta" style="margin-top:8px">Stories open here by design — no Motley Fool-class sources are pooled (blocked at ingestion), and the ↗ is only there if you want a publisher's original. Full article text belongs to the publishers, so the app writes its own briefing from the pooled headlines and market data instead of copying articles.</p>`;
+}
+function viewRelease(idx){
+  const rel=((DB.releases||{}).releases||[])[idx];
+  if(!rel){app.innerHTML=`<div class="card">Release not in the current set. <button class="btn" onclick="location.hash='#/today'">Back to Today</button></div>`;return}
+  app.innerHTML=`<button class="btn" onclick="history.back()">← Back</button>
+  <div class="card" style="margin-top:10px"><div class="kicker" style="color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Official release · full text</div>
+  <h3 style="margin:8px 0">${esc(rel.title)}</h3>
+  <div class="meta">${esc(rel.source)} · ${etFull(rel.ts*1000)} · <a href="${esc(rel.link)}" target="_blank" rel="noopener">Original at federalreserve.gov ↗</a></div>
+  <div style="margin-top:12px;font-size:15.5px;line-height:1.65;white-space:pre-wrap">${esc(rel.text)}</div></div>`;
 }
 /* ============ init ============ */
 if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
