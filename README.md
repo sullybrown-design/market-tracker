@@ -40,6 +40,19 @@ no real-time streaming entitlement, and the UI says so wherever it matters.
 | Positioning | CFTC Traders in Financial Futures (Socrata API) | Leveraged Funds, futures only, Tue positions published Fri |
 | 13F | SEC EDGAR | Quarterly; the app links to the authoritative filing lists |
 
+## The Update button
+
+The **↻ Update** button (top of the app) works two ways:
+
+- **Without a token** it immediately reloads the newest snapshot the pipeline has
+  published (bypassing caches) and shows its timestamp.
+- **With a token** it also triggers a full re-ingestion on GitHub and waits for the
+  new snapshot (~2–3 min). To enable: create a fine-grained GitHub token
+  (Settings → Developer settings → Fine-grained tokens) with repository access to
+  only `market-tracker` and the **Actions: Read and write** permission, then paste
+  it via Today → "Data updates" → "Enable full pipeline updates". The token is
+  stored only in that device's local storage — never in the app code or repo.
+
 ## Maintenance
 
 - **Run ingestion by hand:** Actions tab → "Ingest market data" → Run workflow
