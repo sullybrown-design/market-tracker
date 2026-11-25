@@ -14,9 +14,8 @@ jobs:
       - name: Unzip bundle and commit contents
         run: |
           unzip -o market-tracker.zip -d extracted
-          rsync -a --exclude '.git' extracted/market-tracker/ ./
+          rsync -a --exclude '.git' --exclude '.github' extracted/market-tracker/ ./
           rm -rf extracted market-tracker.zip
-          rm -f .github/workflows/unzip.yml
           git config user.name "market-tracker-bot"
           git config user.email "actions@github.com"
           git add -A
