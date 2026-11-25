@@ -1,0 +1,24 @@
+name: One-off unzip of uploaded site bundle
+on:
+  push:
+    paths:
+      - ".github/workflows/unzip.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip bundle and commit contents
+        run: |
+          unzip -o market-tracker.zip -d extracted
+          rsync -a --exclude '.git' extracted/market-tracker/ ./
+          rm -rf extracted market-tracker.zip
+          rm -f .github/workflows/unzip.yml
+          git config user.name "market-tracker-bot"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Add full Market Tracker site bundle"
+          git push
