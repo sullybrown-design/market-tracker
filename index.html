@@ -805,7 +805,7 @@ function viewRelease(idx){
   app.innerHTML=`<button class="btn" onclick="history.back()">← Back</button>
   <div class="card" style="margin-top:10px"><div class="kicker" style="color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Official release · full text</div>
   <h3 style="margin:8px 0">${esc(rel.title)}</h3>
-  <div class="meta">${esc(rel.source)} · ${etFull(rel.ts*1000)} · <a href="${esc(rel.link)}" target="_blank" rel="noopener">Original at federalreserve.gov ↗</a></div>
+  <div class="meta">${esc(rel.source)} · ${etFull(rel.ts*1000)} · <a href="${esc(rel.link)}" target="_blank" rel="noopener">Original ↗</a></div>
   <div style="margin-top:12px;font-size:15.5px;line-height:1.65;white-space:pre-wrap">${esc(rel.text)}</div></div>`;
 }
 /* ============ init ============ */
