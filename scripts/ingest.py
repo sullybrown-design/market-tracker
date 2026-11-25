@@ -179,7 +179,12 @@ def why_for(title):
         if any(k in t for k in keys): return txt
     return "Flagged because it is among the most-covered market stories right now; the direct market impact is not yet clear from headlines alone."
 
-def do_news():
+BLOCKED_SUBSTR = ["motley fool", "fool.com", "fool.ca"]  # user: no Motley Fool-class sources (any variant)
+DEMOTED_SOURCES = {"Benzinga", "InvestorPlace", "24/7 Wall St.", "Seeking Alpha", "Zacks Investment Research"}
+def is_blocked(publisher, link):
+    p = (publisher or "").lower()
+    return any(b in p or b in (link or "").lower() for b in BLOCKED_SUBSTR)
+def do_news(quotes=None):
     items = []
     for cat, q in QUERIES:
         try:
@@ -193,6 +198,7 @@ def do_news():
                 s = it.find("source")
                 if s is not None: src = s.text or ""
                 if not title or not link: continue
+                if is_blocked(src, link): continue
                 # Google titles end with " - Publisher"
                 if " - " in title and src and title.endswith(src): title = title[: -len(src)].rstrip(" -")
                 try: ts = int(datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc).timestamp())
@@ -211,18 +217,35 @@ def do_news():
             gw = norm(g["title"])
             inter = len(w & gw); union = len(w | gw) or 1
             if inter / union > 0.45:
-                g["coverage"] += 1; g["publishers"] = sorted(set(g["publishers"] + [it["publisher"]]))[:4]
+                g["coverage"] += 1; g["publishers"] = sorted(set(g["publishers"] + [it["publisher"]]))[:6]
+                if len(g["items"]) < 8 and it["title"] not in [x["title"] for x in g["items"]]:
+                    g["items"].append({"title": it["title"], "publisher": it["publisher"], "link": it["link"], "ts": it["ts"]})
                 placed = True; break
         if not placed:
-            groups.append({**it, "coverage": 1, "publishers": [it["publisher"]]})
+            groups.append({**it, "coverage": 1, "publishers": [it["publisher"]],
+                           "items": [{"title": it["title"], "publisher": it["publisher"], "link": it["link"], "ts": it["ts"]}]})
     tier = {"Reuters":3,"Bloomberg":3,"CNBC":2,"MarketWatch":2,"The Wall Street Journal":3,"Financial Times":3,
             "Associated Press":3,"BNN Bloomberg":2,"The Globe and Mail":2,"Barron's":2,"Investing.com":1,"Yahoo Finance":2}
+    qmap = (quotes or {}).get("quotes", {})
     for g in groups:
         assets = [a for a, keys in ASSET_KEYS if any(k in g["title"].lower() for k in keys)]
         g["assets"] = assets[:4]
         age_h = max(0.0, (NOW.timestamp() - g["ts"]) / 3600)
-        g["score"] = round(tier.get(g["publisher"], 1) * 2 + min(g["coverage"], 6) + max(0, 6 - age_h), 1)
+        t = tier.get(g["publisher"], 1) - (1 if g["publisher"] in DEMOTED_SOURCES else 0)
+        g["score"] = round(t * 2 + min(g["coverage"], 6) + max(0, 6 - age_h), 1)
         g["why"] = why_for(g["title"])
+        # In-app briefing: synthesized from pooled headlines + verified market moves.
+        # (Publishers' article text is theirs and is never copied into the app.)
+        variants = []
+        for it in g["items"]:
+            if it["title"] != g["title"] and it["title"] not in variants: variants.append(it["title"])
+        ctx = []
+        for a in g["assets"]:
+            q = qmap.get(a)
+            if q: ctx.append(f"{a} ({q['name']}) is at {q['price']} ({q['changePct']:+.2f}% today, {q['weekPct']:+.2f}% this week) in the latest snapshot.")
+        g["brief"] = {"coverage_line": f"Pooled from {g['coverage']} article(s) across {len(set(g['publishers']))} publisher(s): {', '.join(sorted(set(g['publishers'])))}.",
+                      "variants": variants[:4], "market_context": ctx,
+                      "label": "App briefing compiled in-app from pooled headlines and verified market data. Full article text belongs to the publishers and is not republished here."}
     groups.sort(key=lambda x: -x["score"])
     write_json("news.json", {"generated_at": NOW.isoformat(), "feed": "Google News RSS (publisher headlines, grouped by story)",
                              "stories": groups[:30]})
@@ -440,13 +463,18 @@ def do_candles():
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "fast"
+    if mode == "news":
+        qd = json.load(open(os.path.join(DATA, "quotes.json"))) if os.path.exists(os.path.join(DATA, "quotes.json")) else None
+        do_news(qd); return
     snap = quotes = None
     if mode in ("fast", "all"):
         try: do_snapshot()
         except Exception as e: keep_stale("snapshot.json", e)
         try: do_quotes()
         except Exception as e: keep_stale("quotes.json", e)
-        try: do_news()
+        try:
+            qd = json.load(open(os.path.join(DATA, "quotes.json"))) if os.path.exists(os.path.join(DATA, "quotes.json")) else None
+            do_news(qd)
         except Exception as e: keep_stale("news.json", e)
         try: do_earnings()
         except Exception as e: keep_stale("earnings.json", e)
